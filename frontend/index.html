@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Undo402 — Stablecoin Payments with Chargeback</title>
+<meta name="description" content="Undo for x402. Stablecoin payments with chargeback — one dispute API across cards, x402, and any chain.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="#/home"><span class="mark">↩</span> Undo<span class="accent">402</span></a>
+  <nav>
+    <a href="#/home">Home</a>
+    <a href="#/how">How it works</a>
+    <a href="#/integrations">Integrations</a>
+    <a href="#/dashboard">Dashboard</a>
+    <a href="#/contracts">Contracts</a>
+  </nav>
+  <div class="nav-actions">
+    <span id="netBadge" class="badge">StudioNet · 61999</span>
+    <button id="connectBtn" class="btn btn-ghost">Connect wallet</button>
+  </div>
+</header>
+
+<main id="app">
+  <!-- HOME -->
+  <section data-page="home">
+    <div class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Agentic Commerce Infrastructure · GenLayer + Base</p>
+        <h1>Undo for <span class="accent">x402</span>.</h1>
+        <p class="lede">Stablecoin payments with chargeback — one dispute API across cards, x402, and any chain. Real USDC escrows on Base. GenLayer validators adjudicate. You never lose to a silent failure.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#/dashboard">Open dashboard →</a>
+          <a class="btn btn-ghost" href="#/how">How it works</a>
+        </div>
+        <div class="stats">
+          <div><strong id="statPayments">—</strong><span>payments on-chain</span></div>
+          <div><strong id="statCases">—</strong><span>cases registered</span></div>
+          <div><strong>3</strong><span>verdicts live: refund / release / partial</span></div>
+        </div>
+      </div>
+      <div class="hero-card">
+        <p class="card-title">Live verdict example</p>
+        <div class="verdict-demo">
+          <span class="pill pill-refund">refund</span>
+          <code>attestation 60fbfa0f…450f</code>
+          <p>Delivery was HTML, not JSON. Criteria failed → buyer refunded 1 USDC on Base.</p>
+          <a href="#/dashboard">See live payments →</a>
+        </div>
+        <div class="flow-mini">
+          <span>Buyer USDC</span><i>→</i><span>Base escrow</span><i>→</i><span>GenLayer jury</span><i>→</i><span>Relay settles</span>
+        </div>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>The problem</h3>
+        <p>x402 made agent payments <strong>final and irreversible</strong>. Card networks have chargebacks, but they're slow, expensive, and not agent-native. Between them: no neutral dispute layer.</p>
+      </div>
+      <div class="card">
+        <h3>The answer</h3>
+        <p>Real USDC escrows on Base. A GenLayer Intelligent Contract adjudicates delivery vs criteria with decentralized AI validators. Verdict + attestation settle the escrow — automatically.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW -->
+  <section data-page="how" hidden>
+    <h2>How Undo402 works</h2>
+    <div class="steps">
+      <article class="card step"><span class="num">01</span><h3>Pay into escrow</h3><p>Buyer approves USDC and locks it in <code>Undo402Escrow</code> on Base Sepolia. The Base tx hash becomes <code>payment_proof</code> on GenLayer.</p></article>
+      <article class="card step"><span class="num">02</span><h3>Deliver &amp; accept</h3><p>Seller submits a delivery URL. Buyer accepts (fast path, no jury) — or both propose the same outcome (2-of-2 mutual agreement).</p></article>
+      <article class="card step"><span class="num">03</span><h3>Dispute → AI jury</h3><p>Validators fetch the delivery independently and judge it against the agreed criteria. Exact decision match required. <code>undetermined</code> = retryable, never silently swallowed.</p></article>
+      <article class="card step"><span class="num">04</span><h3>Settle on Base</h3><p>Relay reads verdict + SHA-256 attestation and calls <code>release</code> / <code>refund</code> / <code>releasePartial</code> on the Base escrow. USDC moves to the winner.</p></article>
+    </div>
+    <div class="card">
+      <h3>Anti-stuck design</h3>
+      <ul>
+        <li>Buyer timeout claim on Base escrow — funds can never be locked forever</li>
+        <li>Evidence deadline + default judgment — silence is not a strategy</li>
+        <li>Prompt-injection defense (STEP 0) — delivery content is data, not instructions</li>
+        <li>Human override layer — owner can settle disputed cases without AI</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- INTEGRATIONS -->
+  <section data-page="integrations" hidden>
+    <h2>Integrations</h2>
+    <p class="lede">Undo402 is the missing dispute layer in the agentic commerce stack. Each integration below is live or ready — click any card for details.</p>
+    <div class="grid-3">
+      <article class="card int-card"><span class="int-icon">◈</span><h3>x402 Protocol</h3><p>Coinbase HTTP 402 stablecoin payments. Buyer pays USDC via facilitator; payment_proof recorded on GenLayer.</p><span class="pill pill-release">live · Base Sepolia</span></article>
+      <article class="card int-card"><span class="int-icon">⬡</span><h3>Base USDC Escrow</h3><p>Solidity escrow holds real USDC. Release / refund / partial executed from GenLayer verdict + attestation.</p><span class="pill pill-release">live · 0x2aa3…Fde8</span></article>
+      <article class="card int-card"><span class="int-icon">⬢</span><h3>GenLayer StudioNet</h3><p>Intelligent Contract adjudication. 5 validators, Optimistic Democracy, exact decision consensus.</p><span class="pill pill-release">live · 61999</span></article>
+      <article class="card int-card"><span class="int-icon">⬣</span><h3>Card Rail</h3><p>Stripe-style PaymentIntent references accepted as payment_proof. Same dispute API, fiat settlement off-chain.</p><span class="pill pill-partial">ready · pi_… refs</span></article>
+      <article class="card int-card"><span class="int-icon">⬔</span><h3>ERC-8004 Identity</h3><p>Agent identity + reputation hooks. Verdict history feeds on-chain reputation scores.</p><span class="pill pill-undetermined">planned</span></article>
+      <article class="card int-card"><span class="int-icon">⬕</span><h3>A2A / MCP</h3><p>Agent-to-agent negotiation + tool calls. Dispute API exposed as MCP tools for autonomous agents.</p><span class="pill pill-undetermined">planned</span></article>
+    </div>
+    <div class="card">
+      <h3>Rail comparison</h3>
+      <table>
+        <thead><tr><th>Rail</th><th>Settlement</th><th>Proof</th><th>Chargeback</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><strong>x402</strong></td><td>USDC on Base via facilitator</td><td><code>0x…tx hash</code></td><td>Via Undo402 verdict</td><td>Live E2E</td></tr>
+          <tr><td><strong>chain</strong></td><td>Any EVM stablecoin</td><td><code>0x…tx hash</code></td><td>Via Undo402 verdict</td><td>Live E2E</td></tr>
+          <tr><td><strong>card</strong></td><td>Stripe / processor (off-chain)</td><td><code>pi_…</code> reference</td><td>Via Undo402 verdict</td><td>Format validated</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section data-page="dashboard" hidden>
+    <h2>Dashboard <span class="muted">— live on StudioNet + Base Sepolia</span></h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Create payment</h3>
+        <label>Buyer (0x…)<input id="fBuyer" placeholder="0x0Eb9…44bc"></label>
+        <label>Seller (0x…)<input id="fSeller" placeholder="0x99bF…Db3"></label>
+        <label>Rail<select id="fRail"><option>x402</option><option>chain</option><option>card</option></select></label>
+        <label>Criteria<input id="fCriteria" value="Delivery URL must return valid JSON with login and id fields."></label>
+        <label>Payment proof (Base tx hash)<input id="fProof" placeholder="0x…64 hex"></label>
+        <label>Amount (USDC)<input id="fAmount" type="number" step="0.01" min="0.01" value="1"></label>
+        <button class="btn btn-primary" id="btnCreate">Create payment</button>
+        <p class="muted">Relay wallet: <code id="relayAddr">—</code> · Contract: <code id="contractAddr">—</code></p>
+      </div>
+      <div class="card">
+        <h3>Payment actions</h3>
+        <label>Payment ID<input id="aPid" placeholder="pay-1"></label>
+        <label>Delivery URL<input id="aUrl" value="https://api.github.com/users/octocat"></label>
+        <div class="btn-row">
+          <button class="btn" id="btnDelivery">Submit delivery</button>
+          <button class="btn" id="btnDispute">Open dispute</button>
+          <button class="btn btn-primary" id="btnResolve">Resolve dispute</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btnPropose">Propose release</button>
+          <button class="btn" id="btnAccept">Accept</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Payments</h3>
+        <div class="btn-row" style="margin:0">
+          <select id="fFilter" style="width:auto"><option value="">All states</option><option>FUNDED</option><option>DELIVERED</option><option>DISPUTED</option><option>RELEASED</option><option>REFUNDED</option><option>PARTIAL</option></select>
+          <button class="btn btn-ghost" id="btnRefresh">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="verdictChart" class="chart"></div>
+      <div id="payments"><p class="muted">Loading…</p></div>
+    </div>
+    <div class="card" id="verdictCard" hidden>
+      <h3>Verdict</h3>
+      <div id="verdictBody"></div>
+    </div>
+  </section>
+
+  <!-- CONTRACTS -->
+  <section data-page="contracts" hidden>
+    <h2>Contracts</h2>
+    <div class="card">
+      <h3>GenLayer StudioNet (adjudication)</h3>
+      <p>Undo402 single contract — payments, factory registry, AI jury, human layer.</p>
+      <p><code>0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660</code></p>
+      <a href="https://explorer-studio.genlayer.com/address/0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660" target="_blank" rel="noreferrer">View on Studio Explorer ↗</a>
+    </div>
+    <div class="card">
+      <h3>Base Sepolia (USDC escrow)</h3>
+      <p>Undo402Escrow v3 — holds real USDC, release/refund/partial + buyer timeout claim.</p>
+      <p><code>0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8</code></p>
+      <a href="https://sepolia.basescan.org/address/0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8" target="_blank" rel="noreferrer">View on BaseScan ↗</a>
+    </div>
+    <div class="card">
+      <h3>USDC (testnet)</h3>
+      <p><code>0x036CbD53842c5426634e7929541eC2318f3dCF7e</code></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>Undo402 — stablecoin payments with chargeback</span>
+  <span class="muted">StudioNet 61999 · Base Sepolia 84532</span>
+</footer>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script src="router.js"></script>
+<script type="importmap">
+{"imports":{"genlayer-js":"https://esm.sh/genlayer-js","viem":"https://esm.sh/viem"}}
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
