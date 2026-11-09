@@ -47,8 +47,8 @@ async function ensureClient() {
     }
   }
   if (!client) client = genlayer.createClient({ chain: genlayer.studionet });
-  $("contractAddr").textContent = CONTRACT;
-  $("relayAddr").textContent = RELAY;
+  const ca = $("contractAddr"); if (ca) ca.textContent = CONTRACT;
+  const ra = $("relayAddr"); if (ra) ra.textContent = RELAY;
   return client;
 }
 
@@ -67,8 +67,8 @@ async function loadPayments() {
     ]);
     // genlayer-js may decode DynArray as array OR object with numeric keys
     const payments = Array.isArray(rawPayments) ? rawPayments : Object.values(rawPayments || {});
-    $("statPayments").textContent = String(count);
-    $("statCases").textContent = String(cases);
+    const sp = $("statPayments"); if (sp) sp.textContent = String(count);
+    const sc = $("statCases"); if (sc) sc.textContent = String(cases);
     // Verdict distribution chart
     const dist = { refund: 0, release: 0, partial: 0, undetermined: 0, pending: 0 };
     payments.forEach((p) => { dist[p.verdict || "pending"] = (dist[p.verdict || "pending"] || 0) + 1; });
