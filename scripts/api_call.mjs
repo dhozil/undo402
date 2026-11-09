@@ -19,6 +19,6 @@ try {
   const out = WRITE_FNS.has(fn) ? await write(client, fn, args) : await read(client, fn, args);
   console.log(JSON.stringify({ ok: true, ...out }));
 } catch (e) {
-  console.log(JSON.stringify({ ok: false, error: e.code || e.message }));
+  console.log(JSON.stringify({ ok: false, error: e.message, code: e.code, txHash: e.txHash, explorer: e.explorer }));
   process.exit(1);
 }

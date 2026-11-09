@@ -28,7 +28,11 @@ export async function write(client, functionName, args, value = 0n) {
     fullTransaction: true,
   });
   if (receipt?.txExecutionResultName === ExecutionResult.FINISHED_WITH_ERROR) {
-    throw new Error(`Contract execution failed: ${hash}`);
+    const err = new Error(`Contract execution failed (tx ${hash})`);
+    err.code = "CONTRACT_ERROR";
+    err.txHash = hash;
+    err.explorer = `https://explorer-studio.genlayer.com/tx/${hash}`;
+    throw err;
   }
   const consensus = receipt?.consensus_data?.final?.consensus_result
     || receipt?.consensus_data?.consensus_result

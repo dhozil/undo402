@@ -38,8 +38,14 @@
     }
     const client = createClient({ chain: studionet, account: address, provider: window.ethereum });
     const hash = await client.writeContract({ address: CONTRACT, functionName: fn, args });
-    const { TransactionStatus } = await import("genlayer-js/types");
-    await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, retries: 100, interval: 5000, fullTransaction: true });
+    try {
+      const { TransactionStatus } = await import("genlayer-js/types");
+      await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, retries: 100, interval: 5000, fullTransaction: true });
+    } catch (e) {
+      const err = new Error(e.message + " — tx: " + hash + " — see explorer: https://explorer-studio.genlayer.com/tx/" + hash);
+      err.txHash = hash;
+      throw err;
+    }
     return hash;
   }
 
@@ -103,6 +109,7 @@
         }
       }
       toast("<strong>" + esc(action) + " failed:</strong> " + esc(e.message), "error");
+      toast("<strong>See on explorer:</strong> <a href=\"https://explorer-studio.genlayer.com\" target=\"_blank\" rel=\"noreferrer\">Studio Explorer ↗</a> — copy the tx hash from the toast above to read the full contract error.", "error");
     } finally {
       if (btn) setBusy(btn, false);
     }

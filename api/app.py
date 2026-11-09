@@ -86,7 +86,12 @@ def _call(fn: str, args: list):
     except Exception:
         raise HTTPException(502, f"Relay failed: {proc.stdout[-500:]} {proc.stderr[-500:]}")
     if not out.get("ok"):
-        raise HTTPException(502, f"Contract execution failed: {out.get('error')}")
+        detail = f"Contract execution failed: {out.get('error')}"
+        if out.get("txHash"):
+            detail += f" | tx: {out['txHash']}"
+        if out.get("explorer"):
+            detail += f" | explorer: {out['explorer']}"
+        raise HTTPException(502, detail)
     return {"ok": True, "tx": out.get("hash"), "finalized": out.get("finalized", False), "status": out.get("status"), "function": fn, "args": args, "network": "studionet"}
 
 
