@@ -61,9 +61,9 @@ async function loadPayments() {
   paymentsEl.innerHTML = `<p class="muted">Loading from StudioNet…</p>`;
   try {
     const [rawPayments, count, cases] = await Promise.all([
-      read("get_payments").catch(() => []),
-      read("get_payment_count").catch(() => "0"),
-      read("get_case_count").catch(() => "0"),
+      read("get_payments"),
+      read("get_payment_count"),
+      read("get_case_count"),
     ]);
     // genlayer-js may decode DynArray as array OR object with numeric keys
     const payments = Array.isArray(rawPayments) ? rawPayments : Object.values(rawPayments || {});
@@ -84,7 +84,7 @@ async function loadPayments() {
     const dd = $("aPid");
     if (dd && dd.tagName === "SELECT") {
       const cur = dd.value;
-      const mine = window.__walletAddr ? payments.filter((p) => p.seller?.toLowerCase() === window.__walletAddr.toLowerCase() || p.buyer?.toLowerCase() === window.__walletAddr.toLowerCase()) : [];
+      const mine = window.__walletAddr ? payments.filter((p) => String(p.seller || "").toLowerCase() === window.__walletAddr.toLowerCase() || String(p.buyer || "").toLowerCase() === window.__walletAddr.toLowerCase()) : [];
       const list = mine.length ? mine : payments;
       dd.innerHTML = `<option value="">— choose a payment${mine.length ? ` (${mine.length} yours)` : ""} —</option>` + list.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
       if (cur) dd.value = cur;
@@ -119,7 +119,7 @@ async function loadPayments() {
       $("verdictCard").scrollIntoView({ behavior: "smooth", block: "center" });
     }));
   } catch (e) {
-    paymentsEl.innerHTML = `<p class="muted">Could not load payments. Is StudioNet reachable?</p>`;
+    paymentsEl.innerHTML = `<div class="empty-state"><strong>Could not load payments</strong>${esc(e.message)}<br><button class="btn btn-primary" onclick="window.loadPayments()">Retry</button></div>`;
     toast(`<strong>Load failed:</strong> ${esc(e.message)}`, "error");
   }
 }
