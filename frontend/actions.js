@@ -17,11 +17,26 @@
   function esc(s) { return String(s ?? "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
   // Direct wallet write via genlayer-js (EVM-compatible, MetaMask signs).
+  // Sacramentum pattern: account = address string, provider = injected wallet separately.
   async function directWrite(fn, args, action) {
     if (!window.ethereum) throw new Error("Connect MetaMask first (button top-right), then retry.");
     const { createClient } = await import("genlayer-js");
     const { studionet } = await import("genlayer-js/chains");
-    const client = createClient({ chain: studionet, account: window.ethereum });
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const address = accounts[0];
+    if (!address) throw new Error("No account shared by wallet.");
+    try {
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0xf22f" }] });
+    } catch (e) {
+      if (e.code === 4902 || e.code === -32603) {
+        await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{
+          chainId: "0xf22f", chainName: "Genlayer Studio Network",
+          nativeCurrency: { name: "GEN Token", symbol: "GEN", decimals: 18 },
+          rpcUrls: ["https://studio.genlayer.com/api"], blockExplorerUrls: ["https://explorer-studio.genlayer.com"],
+        }] });
+      }
+    }
+    const client = createClient({ chain: studionet, account: address, provider: window.ethereum });
     const hash = await client.writeContract({ address: CONTRACT, functionName: fn, args });
     const { TransactionStatus } = await import("genlayer-js/types");
     await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, retries: 100, interval: 5000, fullTransaction: true });
