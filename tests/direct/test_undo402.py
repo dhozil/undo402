@@ -136,6 +136,7 @@ def test_claim_timeout_after_deadline(direct_vm, direct_deploy, direct_alice, di
 
 def test_resolve_dispute_undetermined_allows_retry(direct_vm, direct_deploy, direct_alice, direct_bob):
     contract, pid = _create(direct_vm, direct_deploy, direct_alice, direct_bob)
+    direct_vm.mock_web(r".*example\.com/spec.*", {"status": 200, "body": "spec v1"})
     direct_vm.mock_web(r".*example\.com/result\.json.*", {"status": 200, "body": ''})
     direct_vm.mock_llm(r".*neutral dispute adjudicator.*", json.dumps({"decision": "undetermined", "score": 0, "refund_percent": 0, "reason": "Insufficient evidence"}))
     direct_vm.sender = direct_bob

@@ -39,7 +39,7 @@ export async function write(client, functionName, args, value = 0n) {
     e.txHash = hash;
     throw e;
   }
-  return { hash, receipt };
+  return { hash, finalized: true, status: receipt?.status_name || receipt?.status || "FINALIZED", receipt };
 }
 
 export async function read(client, functionName, args) {

@@ -22,7 +22,7 @@ BASE = Path(__file__).resolve().parent.parent
 app = FastAPI(title="Undo402 Dispute API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc")
+CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7")
 STUDIONET_RPC = "https://studio.genlayer.com/api"
 CHAIN_ID = 61999
 Rail = Literal["x402", "chain", "card"]
@@ -87,7 +87,7 @@ def _call(fn: str, args: list):
         raise HTTPException(502, f"Relay failed: {proc.stdout[-500:]} {proc.stderr[-500:]}")
     if not out.get("ok"):
         raise HTTPException(502, f"Contract execution failed: {out.get('error')}")
-    return {"ok": True, "tx": out.get("hash"), "function": fn, "args": args, "network": "studionet"}
+    return {"ok": True, "tx": out.get("hash"), "finalized": out.get("finalized", False), "status": out.get("status"), "function": fn, "args": args, "network": "studionet"}
 
 
 @app.get("/health")

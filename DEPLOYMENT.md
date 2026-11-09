@@ -4,7 +4,8 @@
 
 | Contract | Address |
 |---|---|
-| **Undo402 v7 (evidence manifest + conserved + timeout)** ⭐ | `0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc` |
+| **Undo402 v8 (Sacramentum adoption)** ⭐ | `0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7` |
+| Undo402 v7 (evidence manifest + conserved + timeout) | `0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc` |
 | Undo402 v6 (stablecoin adjudication) | `0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660` |
 
 - Relay = seller wallet `0x99bF…D5Db3`, registered type `undo402-case`, self-registered case 0

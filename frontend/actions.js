@@ -3,7 +3,7 @@
 // signing via genlayer-js (works on Vercel for any visitor, no backend).
 (function () {
   var API = "http://localhost:8000";
-  var CONTRACT = "0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc";
+  var CONTRACT = "0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7";
   function $(id) { return document.getElementById(id); }
   function toast(msg, kind) {
     var box = document.getElementById("toasts");
@@ -85,7 +85,8 @@
       var data = await res.json().catch(function () { return {}; });
       if (!res.ok) throw new Error(data.detail || res.statusText);
       var tx = data.tx ? '<br><a href="https://explorer-studio.genlayer.com/tx/' + esc(data.tx) + '" target="_blank" rel="noreferrer">tx ' + esc(data.tx.slice(0, 10)) + '… ↗</a>' : "";
-      toast("<strong>" + esc(action) + " success.</strong><br>" + tx, "success");
+      var fin = data.finalized ? '<br><span class="muted">✅ FINALIZED on StudioNet — state change confirmed.</span>' : '<br><span class="muted">⏳ Accepted, waiting for finalization…</span>';
+      toast("<strong>" + esc(action) + " success.</strong><br>" + tx + fin, "success");
       if (window.loadPayments) window.loadPayments();
     } catch (e) {
       // API unreachable (e.g. Vercel visitor without local backend) -> direct wallet fallback
