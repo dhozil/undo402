@@ -27,7 +27,7 @@
   </nav>
   <div class="nav-actions">
     <span id="netBadge" class="badge">● Live · StudioNet 61999</span>
-    <button id="connectBtn" class="btn btn-ghost">Connect wallet</button>
+    <button id="connectBtn" class="btn btn-ghost" aria-label="Connect MetaMask wallet">Connect wallet</button>
   </div>
 </header>
 
@@ -198,7 +198,7 @@
       <p class="muted">Click <strong>View</strong> on any payment to see the full story in plain language.</p>
       <div id="verdictChart" class="chart"></div>
       <div id="verdictLabels" class="chart-labels"></div>
-      <div id="payments"><p class="muted">Loading…</p></div>
+      <div id="payments"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
     </div>
     <div class="card" id="verdictCard" hidden>
       <h3>⚖ Verdict — what happened</h3>

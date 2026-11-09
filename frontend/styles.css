@@ -25,6 +25,11 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -2; pointer-event
     radial-gradient(600px 500px at 88% 12%, rgba(124,92,255,.18), transparent 65%),
     radial-gradient(550px 450px at 50% 95%, rgba(255,122,89,.12), transparent 65%);
   filter: blur(2px); }
+.skeleton { height: 72px; border-radius: 14px; margin: .7rem 0; background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.09) 50%, rgba(255,255,255,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+.empty-state strong { color: var(--text); font-size: 1.1rem; display: block; margin-bottom: .4rem; }
 .orb { position: fixed; border-radius: 50%; filter: blur(70px); z-index: -1; opacity: .55; animation: float 14s ease-in-out infinite; pointer-events: none; }
 .orb-1 { width: 420px; height: 420px; background: radial-gradient(circle, rgba(45,212,167,.35), transparent 70%); top: -120px; left: 8%; }
 .orb-2 { width: 380px; height: 380px; background: radial-gradient(circle, rgba(124,92,255,.3), transparent 70%); top: 20%; right: -80px; animation-delay: -4s; }

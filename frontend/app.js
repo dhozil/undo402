@@ -68,7 +68,7 @@ async function loadPayments() {
     if (labels) labels.innerHTML = Object.keys(dist).map((k) => `<span>${k}</span>`).join("");
     const filter = $("fFilter")?.value || "";
     const shown = filter ? payments.filter((p) => p.state === filter) : payments;
-    if (!shown?.length) { paymentsEl.innerHTML = `<p class="muted">No payments match this filter. Try another status, or create your first payment above 👆</p>`; return; }
+    if (!shown?.length) { paymentsEl.innerHTML = `<div class="empty-state"><strong>No payments ${filter ? "match this filter" : "yet"}</strong>${filter ? "Try another status above." : "Create your first payment — Step 1 above takes 2 minutes."}</div>`; return; }
     const PLAIN = {
       FUNDED: "💰 Waiting for delivery — USDC locked in escrow",
       DELIVERED: "📦 Delivered — buyer is checking",
