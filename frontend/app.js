@@ -31,19 +31,8 @@ function setBusy(btn, busy, label) {
 // Router lives in router.js (plain script, no imports) so navigation
 // works even if the chain module below fails to load.
 
-// Wallet (read-only demo: relay signs writes, wallet is for identity)
-async function connect() {
-  try {
-    if (!window.ethereum) throw new Error("No injected wallet found. Install MetaMask or use the relay demo account.");
-    const addr = await window.ethereum.request({ method: "eth_requestAccounts" });
-    account = addr[0];
-    $("connectBtn").textContent = account.slice(0, 6) + "…" + account.slice(-4);
-    toast(`Wallet connected: <code>${esc(account)}</code>`, "success");
-  } catch (e) {
-    toast(`<strong>Connection failed:</strong> ${esc(e.message)}`, "error");
-  }
-}
-$("connectBtn").addEventListener("click", connect);
+// Wallet connect lives in wallet.js (plain script) so the button works
+// even if the chain module below fails to load.
 
 // Live reads
 async function ensureClient() {
