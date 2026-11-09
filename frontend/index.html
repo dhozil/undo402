@@ -129,10 +129,22 @@
     <p class="lede">In plain words: <strong>you pay in USDC, the seller delivers, and if something goes wrong an AI jury decides who gets the money.</strong> Follow the 4 steps below — everything else happens automatically.</p>
 
     <div class="wizard">
-      <div class="wiz-step"><span>1</span><div><strong>Create payment</strong><p>Buyer locks USDC in escrow on Base.</p></div></div>
-      <div class="wiz-step"><span>2</span><div><strong>Seller delivers</strong><p>Link to the work / API result.</p></div></div>
-      <div class="wiz-step"><span>3</span><div><strong>Buyer checks</strong><p>Happy? Accept. Not happy? Dispute.</p></div></div>
-      <div class="wiz-step"><span>4</span><div><strong>AI decides</strong><p>Jury verdict settles the USDC automatically.</p></div></div>
+      <div class="wiz-step"><span>1</span><div><strong>Lock USDC on Base</strong><p>Approve + create escrow (Base Sepolia).</p></div></div>
+      <div class="wiz-step"><span>2</span><div><strong>Record on GenLayer</strong><p>Paste Base tx hash as proof.</p></div></div>
+      <div class="wiz-step"><span>3</span><div><strong>Seller delivers</strong><p>Link to the work / API result.</p></div></div>
+      <div class="wiz-step"><span>4</span><div><strong>AI decides + settles</strong><p>Verdict releases/refunds USDC on Base.</p></div></div>
+    </div>
+
+    <div class="card">
+      <h3>🏦 Base Escrow — lock your USDC first (Base Sepolia)</h3>
+      <p class="muted">Switch MetaMask to <strong>Base Sepolia (84532)</strong>. Step A: approve USDC. Step B: create escrow — copy the tx hash into "Proof of your Base payment" below.</p>
+      <label>Payment ID<input id="ePid" value="pay-1"><small>Must match the GenLayer payment ID you create next.</small></label>
+      <div class="btn-row">
+        <button class="btn" id="btnApprove">A. Approve USDC</button>
+        <button class="btn btn-primary" id="btnEscrow">B. Create escrow</button>
+        <button class="btn btn-ghost" id="btnEscrowStatus">Check escrow</button>
+      </div>
+      <div id="escrowOut" class="muted">Escrow: <code>0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8</code></div>
     </div>
 
     <div class="grid-2">

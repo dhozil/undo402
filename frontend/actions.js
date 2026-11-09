@@ -127,6 +127,56 @@
   bind("btnAccept", function (btn) { apiWrite("/payments/" + $("aPid").value + "/accept", { actor_address: $("fBuyer").value }, "accept", "accept", [$("fBuyer").value, $("aPid").value], btn); });
   bind("btnRefresh", function () { if (window.loadPayments) window.loadPayments(); else toast("Dashboard data module not loaded yet.", "error"); });
 
+  // Base escrow actions (viem + MetaMask on Base Sepolia)
+  var ESCROW = "0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8";
+  var USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  async function baseClient() {
+    if (!window.ethereum) throw new Error("Connect MetaMask first.");
+    const { createWalletClient, createPublicClient, http } = await import("viem");
+    const { baseSepolia } = await import("viem/chains");
+    const pub = createPublicClient({ chain: baseSepolia, transport: http("https://sepolia.base.org") });
+    const wallet = createWalletClient({ chain: baseSepolia, transport: http("https://sepolia.base.org"), account: window.ethereum });
+    return { pub, wallet };
+  }
+  async function baseWrite(fn, args, label) {
+    var btn = null;
+    try {
+      toast("<strong>" + label + "…</strong> check MetaMask (Base Sepolia)");
+      const { pub, wallet } = await baseClient();
+      const abis = {
+        approve: [{ type: "function", name: "approve", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" }],
+        createEscrow: [{ type: "function", name: "createEscrow", inputs: [{ type: "string" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }], outputs: [], stateMutability: "nonpayable" }],
+      };
+      const addr = fn === "approve" ? USDC : ESCROW;
+      const h = await wallet.writeContract({ address: addr, abi: abis[fn], functionName: fn, args });
+      await pub.waitForTransactionReceipt({ hash: h });
+      toast("<strong>" + label + " success.</strong><br><a href=\"https://sepolia.basescan.org/tx/" + h + "\" target=\"_blank\" rel=\"noreferrer\">tx " + h.slice(0, 10) + "… ↗</a>" + (fn === "createEscrow" ? "<br><span class='muted'>Copy this tx hash into Proof field below 👇</span>" : ""), "success");
+      if (fn === "createEscrow") { var p = document.getElementById("fProof"); if (p) p.value = h; }
+    } catch (e) {
+      toast("<strong>" + label + " failed:</strong> " + esc(e.message), "error");
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function () {
+    var b1 = document.getElementById("btnApprove");
+    if (b1) b1.addEventListener("click", function () {
+      var amt = Math.round(parseFloat(document.getElementById("fAmount").value || "0") * 1000000);
+      baseWrite("approve", [ESCROW, BigInt(amt)], "Approve USDC");
+    });
+    var b2 = document.getElementById("btnEscrow");
+    if (b2) b2.addEventListener("click", function () {
+      var amt = Math.round(parseFloat(document.getElementById("fAmount").value || "0") * 1000000);
+      baseWrite("createEscrow", [document.getElementById("ePid").value, document.getElementById("fSeller").value, BigInt(amt), 86400n], "Create escrow");
+    });
+    var b3 = document.getElementById("btnEscrowStatus");
+    if (b3) b3.addEventListener("click", async function () {
+      try {
+        const { pub } = await baseClient();
+        const e = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "getEscrow", inputs: [{ type: "string" }], outputs: [{ type: "tuple", components: [{ type: "address" }, { type: "address" }, { type: "uint256" }, { type: "uint8" }, { type: "string" }, { type: "string" }] }], stateMutability: "view" }], functionName: "getEscrow", args: [document.getElementById("ePid").value] });
+        document.getElementById("escrowOut").innerHTML = "Escrow: amount " + e[2].toString() + " µUSDC · status " + e[3] + " (0 none, 1 funded, 2 released, 3 refunded, 4 partial)";
+      } catch (err) { toast("<strong>Escrow read failed:</strong> " + esc(err.message), "error"); }
+    });
+  });
+
   document.addEventListener("DOMContentLoaded", function () {
     var f = document.getElementById("fFilter");
     if (f) f.addEventListener("change", function () { if (window.loadPayments) window.loadPayments(); });
