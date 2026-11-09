@@ -79,21 +79,33 @@ async function loadPayments() {
     $("verdictChart").insertAdjacentHTML("afterend", `<div class="chart-labels">${Object.keys(dist).map((k) => `<span>${k}</span>`).join("")}</div>`);
     const filter = $("fFilter")?.value || "";
     const shown = filter ? payments.filter((p) => p.state === filter) : payments;
-    if (!shown?.length) { paymentsEl.innerHTML = `<p class="muted">No payments match this filter.</p>`; return; }
-    const rows = shown.map((p) => {
-      const verdict = p.verdict ? `<span class="pill pill-${esc(p.verdict)}">${esc(p.verdict)}</span>` : `<span class="muted">—</span>`;
-      return `<tr>
-        <td><code>${esc(p.id)}</code></td>
-        <td>${esc(p.state)}</td>
-        <td>${verdict}</td>
-        <td>${esc(p.amount_usdc)} <small>µUSDC</small></td>
-        <td>${esc(p.rail)}</td>
-        <td>${p.attestation_digest ? `<code title="${esc(p.attestation_digest)}">${esc(p.attestation_digest.slice(0, 10))}…</code>` : "—"}</td>
-        <td><button class="btn btn-ghost" data-view="${esc(p.id)}">View</button></td>
-      </tr>`;
+    if (!shown?.length) { paymentsEl.innerHTML = `<p class="muted">No payments match this filter. Try another status, or create your first payment above 👆</p>`; return; }
+    const PLAIN = {
+      FUNDED: "💰 Waiting for delivery — USDC locked in escrow",
+      DELIVERED: "📦 Delivered — buyer is checking",
+      DISPUTED: "⚖ In dispute — AI jury is deciding",
+      RELEASED: "✅ Seller paid — delivery accepted",
+      REFUNDED: "↩ Buyer refunded — delivery failed",
+      PARTIAL: "◐ Split — both sides got part of the money",
+    };
+    const cards = shown.map((p) => {
+      const verdict = p.verdict ? `<span class="pill pill-${esc(p.verdict)}">${esc(p.verdict)}</span>` : `<span class="muted">no verdict yet</span>`;
+      const usdc = (Number(p.amount_usdc) / 1e6).toFixed(2);
+      return `<div class="card" style="margin:.7rem 0">
+        <div class="card-head" style="margin:0">
+          <div><code>${esc(p.id)}</code> <strong>${usdc} USDC</strong> <span class="muted">via ${esc(p.rail)}</span></div>
+          ${verdict}
+        </div>
+        <p style="margin:.5rem 0">Status: <strong>${esc(p.state)}</strong> — ${PLAIN[p.state] || ""}</p>
+        <button class="btn btn-ghost" data-view="${esc(p.id)}">See what happened →</button>
+      </div>`;
     }).join("");
-    paymentsEl.innerHTML = `<table><thead><tr><th>ID</th><th>State</th><th>Verdict</th><th>Amount</th><th>Rail</th><th>Attestation</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
-    paymentsEl.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => showPayment(b.dataset.view)));
+    paymentsEl.innerHTML = cards;
+    paymentsEl.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => {
+      $("aPid").value = b.dataset.view;
+      showPayment(b.dataset.view);
+      $("verdictCard").scrollIntoView({ behavior: "smooth", block: "center" });
+    }));
   } catch (e) {
     paymentsEl.innerHTML = `<p class="muted">Could not load payments. Is StudioNet reachable?</p>`;
     toast(`<strong>Load failed:</strong> ${esc(e.message)}`, "error");
@@ -104,17 +116,25 @@ async function showPayment(id) {
   try {
     const p = await read("get_payment", [id]);
     $("verdictCard").hidden = false;
+    const PLAIN_VERDICT = {
+      refund: "💸 Buyer got their money back — the delivery didn't meet the agreed criteria.",
+      release: "✅ Seller got paid — the delivery met the criteria.",
+      partial: "◐ Money split — delivery was partly good, partly not.",
+      undetermined: "🤔 Jury couldn't decide yet — retry for free, your money is safe.",
+    };
     $("verdictBody").innerHTML = `
       <p><span class="pill pill-${esc(p.verdict || "undetermined")}">${esc(p.verdict || "pending")}</span>
-      <code>${esc(p.id)}</code> · state <strong>${esc(p.state)}</strong> · ${esc(p.amount_usdc)} µUSDC · ${esc(p.rail)}</p>
-      <p><strong>Reason:</strong> ${esc(p.verdict_reason || "—")}</p>
-      <p><strong>Attestation:</strong> <code>${esc(p.attestation_digest || "—")}</code></p>
+      <code>${esc(p.id)}</code> · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC · via ${esc(p.rail)}</p>
+      <p style="font-size:1.05rem"><strong>${PLAIN_VERDICT[p.verdict] || "⏳ Waiting for a verdict — follow steps 2–4 to move this payment forward."}</strong></p>
+      <p><strong>Why?</strong> ${esc(p.verdict_reason || "—")}</p>
+      <p><strong>Proof this verdict is real (attestation):</strong> <code>${esc(p.attestation_digest || "—")}</code></p>
       <p><strong>Delivery:</strong> <a href="${esc(p.delivery_url)}" target="_blank" rel="noreferrer">${esc(p.delivery_url || "—")}</a></p>
       <div class="detail">
-        <strong>Detail</strong><br>
+        <strong>The details</strong><br>
         Buyer <code>${esc(p.buyer)}</code> · Seller <code>${esc(p.seller)}</code><br>
-        Criteria: ${esc(p.criteria)}<br>
-        Proof: <code>${esc(p.payment_proof)}</code> · Refund: ${esc(p.refund_percent)}% · Score: ${esc(p.verdict_score)}<br>
+        Agreed criteria: ${esc(p.criteria)}<br>
+        Your payment proof: <code>${esc(p.payment_proof)}</code><br>
+        AI confidence: ${esc(p.verdict_score)}/100 · Refund share: ${esc(p.refund_percent)}%<br>
         ${p.human_verdict ? `Human override: <strong>${esc(p.human_verdict)}</strong> — ${esc(p.human_reason)}<br>` : ""}
         <a href="https://explorer-studio.genlayer.com/address/${CONTRACT}" target="_blank" rel="noreferrer">View contract ↗</a>
         · <a href="https://sepolia.basescan.org/address/0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8" target="_blank" rel="noreferrer">Base escrow ↗</a>
