@@ -23,7 +23,7 @@
     <a href="#/contracts">Contracts</a>
   </nav>
   <div class="nav-actions">
-    <span id="netBadge" class="badge">StudioNet · 61999</span>
+    <span id="netBadge" class="badge">● Live · StudioNet 61999</span>
     <button id="connectBtn" class="btn btn-ghost">Connect wallet</button>
   </div>
 </header>
@@ -31,43 +31,50 @@
 <main id="app">
   <!-- HOME -->
   <section data-page="home">
-    <div class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Agentic Commerce Infrastructure · GenLayer + Base</p>
-        <h1>Undo for <span class="accent">x402</span>.</h1>
-        <p class="lede">Stablecoin payments with chargeback — one dispute API across cards, x402, and any chain. Real USDC escrows on Base. GenLayer validators adjudicate. You never lose to a silent failure.</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="#/dashboard">Open dashboard →</a>
-          <a class="btn btn-ghost" href="#/how">How it works</a>
-        </div>
-        <div class="stats">
-          <div><strong id="statPayments">—</strong><span>payments on-chain</span></div>
-          <div><strong id="statCases">—</strong><span>cases registered</span></div>
-          <div><strong>3</strong><span>verdicts live: refund / release / partial</span></div>
-        </div>
+    <div class="hero hero-center">
+      <p class="eyebrow">Agentic Commerce Infrastructure · GenLayer + Base</p>
+      <h1>Undo for <span class="accent">x402</span>.</h1>
+      <p class="lede lede-center">Stablecoin payments with chargeback — one dispute API across cards, x402, and any chain. Real USDC escrows on Base. GenLayer validators adjudicate. You never lose to a silent failure.</p>
+      <div class="hero-cta hero-cta-center">
+        <a class="btn btn-primary btn-lg" href="#/dashboard">Open dashboard →</a>
+        <a class="btn btn-glass btn-lg" href="#/how">How it works</a>
       </div>
-      <div class="hero-card">
-        <p class="card-title">Live verdict example</p>
-        <div class="verdict-demo">
-          <span class="pill pill-refund">refund</span>
-          <code>attestation 60fbfa0f…450f</code>
-          <p>Delivery was HTML, not JSON. Criteria failed → buyer refunded 1 USDC on Base.</p>
-          <a href="#/dashboard">See live payments →</a>
-        </div>
-        <div class="flow-mini">
-          <span>Buyer USDC</span><i>→</i><span>Base escrow</span><i>→</i><span>GenLayer jury</span><i>→</i><span>Relay settles</span>
-        </div>
+      <div class="stats stats-center">
+        <div><strong id="statPayments">—</strong><span>payments on-chain</span></div>
+        <div><strong id="statCases">—</strong><span>cases registered</span></div>
+        <div><strong>3</strong><span>verdicts live</span></div>
+        <div><strong>100%</strong><span>USDC settled on Base</span></div>
       </div>
     </div>
-    <div class="split">
-      <div class="card">
-        <h3>The problem</h3>
-        <p>x402 made agent payments <strong>final and irreversible</strong>. Card networks have chargebacks, but they're slow, expensive, and not agent-native. Between them: no neutral dispute layer.</p>
-      </div>
-      <div class="card">
-        <h3>The answer</h3>
-        <p>Real USDC escrows on Base. A GenLayer Intelligent Contract adjudicates delivery vs criteria with decentralized AI validators. Verdict + attestation settle the escrow — automatically.</p>
-      </div>
+
+    <div class="logo-strip">
+      <span>x402</span><span>Base</span><span>GenLayer</span><span>USDC</span><span>ERC-8004</span><span>A2A</span>
+    </div>
+
+    <div class="section-head">
+      <p class="eyebrow">Why Undo402</p>
+      <h2>The missing dispute layer<br>for the agentic economy.</h2>
+    </div>
+    <div class="grid-3">
+      <article class="card feature"><span class="int-icon">🛡</span><h3>Real USDC escrow</h3><p>Funds lock in a Solidity escrow on Base — not in a promise. Release, refund, or split only from a GenLayer verdict.</p></article>
+      <article class="card feature"><span class="int-icon">⚖</span><h3>AI jury, not operator</h3><p>Five independent validators judge delivery vs criteria. No single backend decides who gets paid.</p></article>
+      <article class="card feature"><span class="int-icon">↩</span><h3>Chargeback, finally</h3><p>x402 made payments final. Undo402 adds the undo — refund, release, or partial, in minutes.</p></article>
+    </div>
+
+    <div class="section-head">
+      <p class="eyebrow">Live proof</p>
+      <h2>Verdicts, not promises.</h2>
+    </div>
+    <div class="grid-3">
+      <article class="card verdict-showcase"><span class="pill pill-refund">refund</span><h3>HTML ≠ JSON</h3><p>Delivery was a placeholder page. Criteria failed → buyer refunded 1 USDC on Base.</p><code>attestation 60fbfa0f…</code></article>
+      <article class="card verdict-showcase"><span class="pill pill-release">release</span><h3>GitHub API ✓</h3><p>Valid JSON with login + id. Score 100 → seller paid in full on Base.</p><code>attestation 9b13cef4…</code></article>
+      <article class="card verdict-showcase"><span class="pill pill-partial">partial</span><h3>Half good</h3><p>Some fields missing → escrow split 50/50, both sides made whole.</p><code>attestation 1d7dfe0d…</code></article>
+    </div>
+
+    <div class="cta-band">
+      <h2>Ready to undo a payment?</h2>
+      <p>Create a payment, deliver, dispute — watch the jury decide.</p>
+      <a class="btn btn-primary btn-lg" href="#/dashboard">Launch dashboard →</a>
     </div>
   </section>
 
@@ -183,8 +190,8 @@
     <div class="card">
       <h3>GenLayer StudioNet (adjudication)</h3>
       <p>Undo402 single contract — payments, factory registry, AI jury, human layer.</p>
-      <p><code>0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660</code></p>
-      <a href="https://explorer-studio.genlayer.com/address/0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660" target="_blank" rel="noreferrer">View on Studio Explorer ↗</a>
+      <p><code>0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7</code></p>
+      <a href="https://explorer-studio.genlayer.com/address/0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7" target="_blank" rel="noreferrer">View on Studio Explorer ↗</a>
     </div>
     <div class="card">
       <h3>Base Sepolia (USDC escrow)</h3>
