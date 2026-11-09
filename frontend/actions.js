@@ -180,5 +180,13 @@
   document.addEventListener("DOMContentLoaded", function () {
     var f = document.getElementById("fFilter");
     if (f) f.addEventListener("change", function () { if (window.loadPayments) window.loadPayments(); });
+    // Step 2-4 buttons disabled until a Payment ID is entered
+    var pid = document.getElementById("aPid");
+    var ids = ["btnDelivery", "btnDispute", "btnResolve", "btnPropose", "btnAccept"];
+    function sync() {
+      var has = pid && pid.value.trim() !== "";
+      ids.forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = !has; });
+    }
+    if (pid) { pid.addEventListener("input", sync); sync(); }
   });
 })();

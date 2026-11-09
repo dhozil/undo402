@@ -92,6 +92,7 @@ async function loadPayments() {
     paymentsEl.innerHTML = cards;
     paymentsEl.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => {
       $("aPid").value = b.dataset.view;
+      $("aPid").dispatchEvent(new Event("input"));
       showPayment(b.dataset.view);
       $("verdictCard").scrollIntoView({ behavior: "smooth", block: "center" });
     }));
