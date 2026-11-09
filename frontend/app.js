@@ -50,11 +50,13 @@ async function read(fn, args = []) {
 async function loadPayments() {
   paymentsEl.innerHTML = `<p class="muted">Loading from StudioNet…</p>`;
   try {
-    const [payments, count, cases] = await Promise.all([
+    const [rawPayments, count, cases] = await Promise.all([
       read("get_payments").catch(() => []),
       read("get_payment_count").catch(() => "0"),
       read("get_case_count").catch(() => "0"),
     ]);
+    // genlayer-js may decode DynArray as array OR object with numeric keys
+    const payments = Array.isArray(rawPayments) ? rawPayments : Object.values(rawPayments || {});
     $("statPayments").textContent = String(count);
     $("statCases").textContent = String(cases);
     // Verdict distribution chart
@@ -104,7 +106,8 @@ async function loadPayments() {
 
 async function showPayment(id) {
   try {
-    const p = await read("get_payment", [id]);
+    let p = await read("get_payment", [id]);
+    if (Array.isArray(p)) p = p[0];
     $("verdictCard").hidden = false;
     const PLAIN_VERDICT = {
       refund: "💸 Buyer got their money back — the delivery didn't meet the agreed criteria.",
