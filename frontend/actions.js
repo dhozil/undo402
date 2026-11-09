@@ -151,12 +151,15 @@
     try {
       toast("<strong>" + label + "…</strong> check MetaMask (Base Sepolia)");
       const { pub, wallet } = await baseClient();
-      const abis = {
+      const escrowAbi = {
         approve: [{ type: "function", name: "approve", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" }],
         createEscrow: [{ type: "function", name: "createEscrow", inputs: [{ type: "string" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }], outputs: [], stateMutability: "nonpayable" }],
+        refund: [{ type: "function", name: "refund", inputs: [{ type: "string" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
+        release: [{ type: "function", name: "release", inputs: [{ type: "string" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
+        claimTimeout: [{ type: "function", name: "claimTimeout", inputs: [{ type: "string" }], outputs: [], stateMutability: "nonpayable" }],
       };
       const addr = fn === "approve" ? USDC : ESCROW;
-      const h = await wallet.writeContract({ address: addr, abi: abis[fn], functionName: fn, args });
+      const h = await wallet.writeContract({ address: addr, abi: escrowAbi[fn], functionName: fn, args });
       await pub.waitForTransactionReceipt({ hash: h });
       toast("<strong>" + label + " success.</strong><br><a href=\"https://sepolia.basescan.org/tx/" + h + "\" target=\"_blank\" rel=\"noreferrer\">tx " + h.slice(0, 10) + "… ↗</a>" + (fn === "createEscrow" ? "<br><span class='muted'>Copy this tx hash into Proof field below 👇</span>" : ""), "success");
       if (fn === "createEscrow") { var p = document.getElementById("fProof"); if (p) p.value = h; }
@@ -187,6 +190,12 @@
         document.getElementById("escrowOut").innerHTML = "Escrow: amount " + e[2].toString() + " µUSDC · status " + e[3] + " (0 none, 1 funded, 2 released, 3 refunded, 4 partial)";
       } catch (err) { toast("<strong>Escrow read failed:</strong> " + esc(err.message), "error"); }
     });
+    var b4 = document.getElementById("btnRefund");
+    if (b4) b4.addEventListener("click", function () { baseWrite("refund", [document.getElementById("ePid").value, ""], "Refund USDC"); });
+    var b5 = document.getElementById("btnRelease");
+    if (b5) b5.addEventListener("click", function () { baseWrite("release", [document.getElementById("ePid").value, ""], "Release USDC"); });
+    var b6 = document.getElementById("btnTimeout");
+    if (b6) b6.addEventListener("click", function () { baseWrite("claimTimeout", [document.getElementById("ePid").value], "Claim timeout"); });
   });
 
   document.addEventListener("DOMContentLoaded", function () {
