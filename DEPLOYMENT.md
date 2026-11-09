@@ -9,7 +9,10 @@
 | Undo402 v6 (stablecoin adjudication) | `0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660` |
 
 - Relay = seller wallet `0x99bF…D5Db3`, registered type `undo402-case`, self-registered case 0
-- v7 adds (Sacramentum adoption): evidence manifest (max 3 https sources, committed at create), `total_recorded_usdc`/`total_settled_usdc` conserved tracking + `get_stats`, undetermined 1h grace → neutral 50/50 via `claim_timeout`
+- v8 adds (Sacramentum adoption): evidence manifest (max 3 https sources, committed at create), `total_recorded_usdc`/`total_settled_usdc` conserved tracking + `get_stats`, undetermined 1h grace → neutral 50/50 via `claim_timeout`, delivery deadline enforced in `submit_delivery`, committed sources fetched contract-side in leader
+- **E2E v8 `pay-1`:** create → delivery → dispute → **refund + attestation** ✅
+- **Smoke live:** `get_payment_count=1`, `get_stats conserved=True (recorded=settled=1 USDC)`, `get_case_count=1` ✅
+- **Adversarial live:** `create_payment` with `http://` source → **ERROR rejected** ✅; `submit_delivery` on settled `pay-1` → **ERROR rejected** (one-time guard) ✅
 - E2E `pay-1` (v6): 1 USDC recorded → delivery → dispute → **refund verdict + attestation `e915a328…`** ✅
 - Previous GEN-escrow versions (v1–v5) superseded — GEN was a proxy, now removed
 
