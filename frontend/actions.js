@@ -168,12 +168,16 @@
     var b1 = document.getElementById("btnApprove");
     if (b1) b1.addEventListener("click", function () {
       var amt = Math.round(parseFloat(document.getElementById("fAmount").value || "0") * 1000000);
+      if (!(amt > 0)) { toast("<strong>Amount invalid:</strong> enter USDC amount above 0 first.", "error"); return; }
       baseWrite("approve", [ESCROW, BigInt(amt)], "Approve USDC");
     });
     var b2 = document.getElementById("btnEscrow");
     if (b2) b2.addEventListener("click", function () {
+      var seller = document.getElementById("fSeller").value.trim();
+      if (!/^0x[0-9a-fA-F]{40}$/.test(seller)) { toast("<strong>Seller wallet invalid:</strong> fill it in Step 1 form first (0x + 40 hex).", "error"); return; }
       var amt = Math.round(parseFloat(document.getElementById("fAmount").value || "0") * 1000000);
-      baseWrite("createEscrow", [document.getElementById("ePid").value, document.getElementById("fSeller").value, BigInt(amt), 86400n], "Create escrow");
+      if (!(amt > 0)) { toast("<strong>Amount invalid:</strong> enter USDC amount above 0.", "error"); return; }
+      baseWrite("createEscrow", [document.getElementById("ePid").value, seller, BigInt(amt), 86400n], "Create escrow");
     });
     var b3 = document.getElementById("btnEscrowStatus");
     if (b3) b3.addEventListener("click", async function () {
