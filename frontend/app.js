@@ -138,10 +138,10 @@ async function showPayment(id) {
         Agreed criteria: ${esc(p.criteria)}<br>
         Your payment proof: <code>${esc(p.payment_proof)}</code><br>
         AI confidence: ${esc(p.verdict_score)}/100 · Refund share: ${esc(p.refund_percent)}%<br>
-        ${p.human_verdict ? `Human override: <strong>${esc(p.human_verdict)}</strong> — ${esc(p.human_reason)}<br>` : ""}
+        ${p.human_verdict ? "Human override: <strong>" + esc(p.human_verdict) + "</strong> — " + esc(p.human_reason) + "<br>" : ""}
         <a href="https://explorer-studio.genlayer.com/address/${CONTRACT}" target="_blank" rel="noreferrer">View contract ↗</a>
         · <a href="https://sepolia.basescan.org/address/0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8" target="_blank" rel="noreferrer">Base escrow ↗</a>
-      </div>
+      </div>`;
   } catch (e) {
     toast(`<strong>Read failed:</strong> ${esc(e.message)}`, "error");
   }
