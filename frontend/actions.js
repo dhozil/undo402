@@ -2,8 +2,8 @@
 // Strategy: try relay API first (fast, demo), fall back to direct wallet
 // signing via genlayer-js (works on Vercel for any visitor, no backend).
 (function () {
-  var API = "http://localhost:8000";
-  var CONTRACT = "0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7";
+  var API = (window.UNDO402 && window.UNDO402.API_URL) || "http://localhost:8000";
+  var CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7";
   function $(id) { return document.getElementById(id); }
   function toast(msg, kind) {
     var box = document.getElementById("toasts");
@@ -182,8 +182,7 @@
       if (!(amt > 0)) { toast("<strong>Amount invalid:</strong> enter USDC amount above 0.", "error"); return; }
       baseWrite("createEscrow", [document.getElementById("ePid").value, seller, BigInt(amt), 86400n], "Create escrow");
     });
-    var b3 = document.getElementById("btnEscrowStatus");
-    if (b3) b3.addEventListener("click", async function () {
+    var b3 = document.getElementById("btnEscrowStatus");    if (b3) b3.addEventListener("click", async function () {
       try {
         const { pub } = await baseClient();
         const e = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "getEscrow", inputs: [{ type: "string" }], outputs: [{ type: "tuple", components: [{ type: "address" }, { type: "address" }, { type: "uint256" }, { type: "uint8" }, { type: "string" }, { type: "string" }] }], stateMutability: "view" }], functionName: "getEscrow", args: [document.getElementById("ePid").value] });
@@ -196,6 +195,16 @@
     if (b5) b5.addEventListener("click", function () { baseWrite("release", [document.getElementById("ePid").value, ""], "Release USDC"); });
     var b6 = document.getElementById("btnTimeout");
     if (b6) b6.addEventListener("click", function () { baseWrite("claimTimeout", [document.getElementById("ePid").value], "Claim timeout"); });
+    var bb = document.getElementById("btnBalance");
+    if (bb) bb.addEventListener("click", async function () {
+      try {
+        const { pub } = await baseClient();
+        const accts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const bal = await pub.readContract({ address: USDC, abi: [{ type: "function", name: "balanceOf", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }], stateMutability: "view" }], functionName: "balanceOf", args: [accts[0]] });
+        const eth = await pub.getBalance({ address: accts[0] });
+        document.getElementById("balanceOut").textContent = (Number(bal) / 1e6).toFixed(2) + " USDC · " + (Number(eth) / 1e18).toFixed(4) + " ETH (Base Sepolia)";
+      } catch (err) { toast("<strong>Balance failed:</strong> " + esc(err.message), "error"); }
+    });
   });
 
   document.addEventListener("DOMContentLoaded", function () {

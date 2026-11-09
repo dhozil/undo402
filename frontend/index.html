@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Undo402 — Stablecoin Payments with Chargeback</title>
 <meta name="description" content="Undo for x402. Stablecoin payments with chargeback — one dispute API across cards, x402, and any chain.">
+<meta property="og:title" content="Undo402 — Stablecoin Payments with Chargeback">
+<meta property="og:description" content="Undo for x402. Real USDC escrow on Base, AI jury on GenLayer.">
+<meta property="og:type" content="website">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -157,6 +160,7 @@
       <div class="card">
         <h3>🛡 Step 1 — Create a payment</h3>
         <p class="muted">You are the buyer. Your USDC goes to a safe escrow (not directly to the seller) until delivery is checked.</p>
+        <p id="balanceLine" class="muted">Wallet balance: <button class="btn btn-ghost" id="btnBalance" style="padding:.3rem .8rem">Check balance</button> <span id="balanceOut"></span></p>
         <label>Your wallet (buyer)<input id="fBuyer" placeholder="0x0Eb9…44bc"><small>Where the refund goes if things go wrong.</small></label>
         <label>Seller wallet<input id="fSeller" placeholder="0x99bF…Db3"><small>Who you are paying. They only get paid after delivery.</small></label>
         <label>How you pay<select id="fRail"><option value="x402">x402 — USDC via HTTP 402 (agent)</option><option value="chain">Direct transfer — any chain</option><option value="card">Card — Stripe reference</option></select><small>For demos, x402 is the default.</small></label>
@@ -232,6 +236,7 @@
 <div id="toasts" aria-live="polite"></div>
 
 <script src="router.js"></script>
+<script src="config.js"></script>
 <script src="wallet.js"></script>
 <script src="actions.js"></script>
 <script type="importmap">
