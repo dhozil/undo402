@@ -165,7 +165,7 @@
         <label>Seller wallet<input id="fSeller" placeholder="0x99bF…Db3"><small>Who you are paying. They only get paid after delivery.</small></label>
         <label>How you pay<select id="fRail"><option value="x402">x402 — USDC via HTTP 402 (agent)</option><option value="chain">Direct transfer — any chain</option><option value="card">Card — Stripe reference</option></select><small>For demos, x402 is the default.</small></label>
         <label>What "good delivery" means<input id="fCriteria" value="Delivery URL must return valid JSON with login and id fields."><small>Plain sentence the AI jury will judge against. Be specific.</small></label>
-        <label>Proof of your Base payment<input id="fProof" placeholder="0x…64 hex"><small>Tx hash from Base escrow. Relay verifies it.</small></label>
+        <label>Proof of your Base payment<input id="fProof" placeholder="0x…64 hex"><small>This appears <strong>after you create the escrow on Base</strong> (Step "B. Create escrow" above). Copy that tx hash here — the relay verifies it on Base before recording your payment on GenLayer.</small></label>
         <label>How much (USDC)<input id="fAmount" type="number" step="0.01" min="0.01" value="1"><small>1 USDC = 1 dollar. Locked until the verdict.</small></label>
         <button class="btn btn-primary" id="btnCreate">Create payment →</button>
         <p class="muted">Relay: <code id="relayAddr">—</code></p>
