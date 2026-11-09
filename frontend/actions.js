@@ -85,31 +85,13 @@
       return;
     }
     if (btn) setBusy(btn, true, "⏳ " + action + "… check MetaMask");
-    toast("<strong>" + esc(action) + " submitting…</strong> (waiting for StudioNet finality)");
+    toast("<strong>" + esc(action) + " submitting…</strong> (direct wallet, StudioNet)");
     try {
-      var res = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      var data = await res.json().catch(function () { return {}; });
-      if (!res.ok) throw new Error(data.detail || res.statusText);
-      var tx = data.tx ? '<br><a href="https://explorer-studio.genlayer.com/tx/' + esc(data.tx) + '" target="_blank" rel="noreferrer">tx ' + esc(data.tx.slice(0, 10)) + '… ↗</a>' : "";
-      var fin = data.finalized ? '<br><span class="muted">✅ FINALIZED on StudioNet — state change confirmed.</span>' : '<br><span class="muted">⏳ Accepted, waiting for finalization…</span>';
-      toast("<strong>" + esc(action) + " success.</strong><br>" + tx + fin, "success");
+      var hash = await directWrite(directFn, directArgs, action);
+      toast("<strong>" + esc(action) + " success.</strong><br><a href=\"https://explorer-studio.genlayer.com/tx/" + esc(hash) + "\" target=\"_blank\" rel=\"noreferrer\">tx " + esc(hash.slice(0, 10)) + "… ↗</a><br><span class=\"muted\">✅ FINALIZED on StudioNet — state change confirmed.</span>", "success");
       if (window.loadPayments) window.loadPayments();
     } catch (e) {
-      // API unreachable (e.g. Vercel visitor without local backend) -> direct wallet fallback
-      if (e instanceof TypeError && /fetch|Failed to fetch|ERR_CONNECTION|refused/i.test(e.message)) {
-        toast("<strong>Relay API offline</strong> — trying direct wallet signing…");
-        try {
-          var hash = await directWrite(directFn, directArgs, action);
-          toast("<strong>" + esc(action) + " success (direct wallet).</strong><br><a href=\"https://explorer-studio.genlayer.com/tx/" + esc(hash) + "\" target=\"_blank\" rel=\"noreferrer\">tx " + esc(hash.slice(0, 10)) + "… ↗</a>", "success");
-          if (window.loadPayments) window.loadPayments();
-          return;
-        } catch (e2) {
-          toast("<strong>" + esc(action) + " failed:</strong> " + esc(e2.message) + '<br><span class="muted">Connect MetaMask (top-right) and ensure StudioNet network is added.</span>', "error");
-          return;
-        }
-      }
-      toast("<strong>" + esc(action) + " failed:</strong> " + esc(e.message), "error");
-      toast("<strong>See on explorer:</strong> <a href=\"https://explorer-studio.genlayer.com\" target=\"_blank\" rel=\"noreferrer\">Studio Explorer ↗</a> — copy the tx hash from the toast above to read the full contract error.", "error");
+      toast("<strong>" + esc(action) + " failed:</strong> " + esc(e.message) + '<br><span class="muted">Connect MetaMask (top-right) and ensure StudioNet network is added.</span>', "error");
     } finally {
       if (btn) setBusy(btn, false);
     }
