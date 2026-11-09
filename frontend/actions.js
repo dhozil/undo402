@@ -118,8 +118,8 @@
   bind("btnCreate", function (btn) { apiWrite("/payments", {
     actor_address: $("fBuyer").value, seller: $("fSeller").value, rail: $("fRail").value,
     criteria: $("fCriteria").value, payment_proof: $("fProof").value,
-    amount_usdc: Math.round(parseFloat($("fAmount").value || "0") * 1000000), ttl_seconds: 86400,
-  }, "create_payment", "create_payment", [$("fBuyer").value, $("fSeller").value, $("fRail").value, $("fCriteria").value, $("fProof").value, Math.round(parseFloat($("fAmount").value || "0") * 1000000), 86400], btn); });
+    amount_usdc: Math.round(parseFloat($("fAmount").value || "0") * 1000000), ttl_seconds: 86400, evidence_urls: "",
+  }, "create_payment", "create_payment", [$("fBuyer").value, $("fSeller").value, $("fRail").value, $("fCriteria").value, $("fProof").value, Math.round(parseFloat($("fAmount").value || "0") * 1000000), 86400, ""], btn); });
   bind("btnDelivery", function (btn) { apiWrite("/payments/" + $("aPid").value + "/delivery", { actor_address: $("fSeller").value || "0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3", delivery_url: $("aUrl").value, note: "done" }, "submit_delivery", "submit_delivery", [$("fSeller").value, $("aPid").value, $("aUrl").value, "done"], btn); });
   bind("btnDispute", function (btn) { apiWrite("/payments/" + $("aPid").value + "/dispute", { actor_address: $("fBuyer").value || "0x0Eb9431eDdbF170d2224F4f9E47D4DD68b6c44bc", reason: "Delivery does not match criteria" }, "open_dispute", "open_dispute", [$("fBuyer").value, $("aPid").value, "Delivery does not match criteria"], btn); });
   bind("btnResolve", function (btn) { apiWrite("/payments/" + $("aPid").value + "/resolve", {}, "resolve_dispute", "resolve_dispute", [$("aPid").value], btn); });
