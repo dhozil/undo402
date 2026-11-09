@@ -91,7 +91,9 @@
       toast("<strong>" + esc(action) + " success.</strong><br><a href=\"https://explorer-studio.genlayer.com/tx/" + esc(hash) + "\" target=\"_blank\" rel=\"noreferrer\">tx " + esc(hash.slice(0, 10)) + "… ↗</a><br><span class=\"muted\">✅ FINALIZED on StudioNet — state change confirmed.</span>", "success");
       if (window.loadPayments) window.loadPayments();
     } catch (e) {
-      toast("<strong>" + esc(action) + " failed:</strong> " + esc(e.message) + '<br><span class="muted">Connect MetaMask (top-right) and ensure StudioNet network is added.</span>', "error");
+      var txMatch = String(e.message).match(/0x[a-fA-F0-9]{64}/);
+      var txLink = txMatch ? '<br><a href="https://explorer-studio.genlayer.com/tx/' + txMatch[0] + '" target="_blank" rel="noreferrer">View failed tx ↗</a>' : "";
+      toast("<strong>" + esc(action) + " failed:</strong> " + esc(e.message) + txLink + '<br><span class="muted">Connect MetaMask (top-right) and ensure StudioNet network is added.</span>', "error");
     } finally {
       if (btn) setBusy(btn, false);
     }
