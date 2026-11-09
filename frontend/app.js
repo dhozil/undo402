@@ -63,9 +63,9 @@ async function loadPayments() {
     const max = Math.max(1, ...Object.values(dist));
     const colors = { refund: "#e4572e", release: "#0a7d5c", partial: "#d9a441", undetermined: "#9aa3ad", pending: "#ddd6c7" };
     $("verdictChart").innerHTML = Object.entries(dist).map(([k, v]) =>
-      `<div class="bar" style="height:${Math.round((v / max) * 70)}px;background:${colors[k] || "#ddd6c7"}"><span>${v}</span></div>`).join("") +
-      `<div class="chart-labels" style="display:none"></div>`;
-    $("verdictChart").insertAdjacentHTML("afterend", `<div class="chart-labels">${Object.keys(dist).map((k) => `<span>${k}</span>`).join("")}</div>`);
+      `<div class="bar" style="height:${Math.round((v / max) * 70)}px;background:${colors[k] || "#ddd6c7"}"><span>${v}</span></div>`).join("");
+    const labels = document.getElementById("verdictLabels");
+    if (labels) labels.innerHTML = Object.keys(dist).map((k) => `<span>${k}</span>`).join("");
     const filter = $("fFilter")?.value || "";
     const shown = filter ? payments.filter((p) => p.state === filter) : payments;
     if (!shown?.length) { paymentsEl.innerHTML = `<p class="muted">No payments match this filter. Try another status, or create your first payment above 👆</p>`; return; }
@@ -133,36 +133,6 @@ async function showPayment(id) {
   }
 }
 
-// Writes go through the live relay API (api/app.py -> relay.mjs -> StudioNet).
-const API = "http://localhost:8000";
-async function apiWrite(path, body, action) {
-  const missing = Object.entries(body).filter(([, v]) => v === undefined || v === null || String(v).trim() === "");
-  if (missing.length) {
-    toast(`<strong>Missing fields:</strong> ${missing.map(([k]) => esc(k)).join(", ")}`, "error");
-    return;
-  }
-  toast(`<strong>${esc(action)} submitting…</strong> (waiting for StudioNet finality)`);
-  try {
-    const res = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || res.statusText);
-    toast(`<strong>${esc(action)} success.</strong><br>${txLink(data.tx)}<br><span class="muted">Confirmed on StudioNet.</span>`, "success");
-    loadPayments();
-  } catch (e) {
-    toast(`<strong>${esc(action)} failed:</strong> ${esc(e.message)}<br><span class="muted">Is the API running? <code>uvicorn api.app:app --port 8000</code></span>`, "error");
-  }
-}
-
-$("btnCreate").addEventListener("click", () => apiWrite("/payments", {
-  actor_address: $("fBuyer").value, seller: $("fSeller").value, rail: $("fRail").value,
-  criteria: $("fCriteria").value, payment_proof: $("fProof").value,
-  amount_usdc: Math.round(parseFloat($("fAmount").value || "0") * 1000000), ttl_seconds: 86400,
-}, "create_payment"));
-$("btnDelivery").addEventListener("click", () => apiWrite(`/payments/${$("aPid").value}/delivery`, { actor_address: $("fSeller").value || "0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3", delivery_url: $("aUrl").value, note: "done" }, "submit_delivery"));
-$("btnDispute").addEventListener("click", () => apiWrite(`/payments/${$("aPid").value}/dispute`, { actor_address: $("fBuyer").value || "0x0Eb9431eDdbF170d2224F4f9E47D4DD68b6c44bc", reason: "Delivery does not match criteria" }, "open_dispute"));
-$("btnResolve").addEventListener("click", () => apiWrite(`/payments/${$("aPid").value}/resolve`, {}, "resolve_dispute"));
-$("btnPropose").addEventListener("click", () => apiWrite(`/payments/${$("aPid").value}/propose`, { actor_address: $("fBuyer").value, outcome: "release" }, "propose_outcome"));
-$("btnAccept").addEventListener("click", () => apiWrite(`/payments/${$("aPid").value}/accept`, { actor_address: $("fBuyer").value }, "accept"));
-$("btnRefresh").addEventListener("click", loadPayments);
-$("fFilter")?.addEventListener("change", loadPayments);
+// Writes live in actions.js (plain script) so buttons work even if this
+// chain module fails to load. This module only does live reads.
 window.loadPayments = loadPayments;
