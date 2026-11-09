@@ -85,8 +85,10 @@ async function loadPayments() {
     if (dd && dd.tagName === "SELECT") {
       const cur = dd.value;
       const mine = window.__walletAddr ? payments.filter((p) => String(p.seller || "").toLowerCase() === window.__walletAddr.toLowerCase() || String(p.buyer || "").toLowerCase() === window.__walletAddr.toLowerCase()) : [];
-      const list = mine.length ? mine : payments;
-      dd.innerHTML = `<option value="">— choose a payment${mine.length ? ` (${mine.length} yours)` : ""} —</option>` + list.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
+      dd.innerHTML = `<option value="">— choose a payment (${payments.length} total) —</option>` + payments.map((p) => {
+        const isMine = mine.includes(p) ? " ★" : "";
+        return `<option value="${esc(p.id)}">${esc(p.id)}${isMine} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`;
+      }).join("");
       if (cur) dd.value = cur;
       dd.dispatchEvent(new Event("input"));
     }
