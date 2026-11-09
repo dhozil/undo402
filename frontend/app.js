@@ -1,6 +1,4 @@
-// Undo402 frontend — live StudioNet reads + relay writes via genlayer-js
-import { createClient } from "genlayer-js";
-import { studionet } from "genlayer-js/chains";
+// Undo402 frontend — live StudioNet reads via genlayer-js (dynamic import)
 
 const CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7";
 const EXPLORER = "https://explorer-studio.genlayer.com";
@@ -34,9 +32,21 @@ function setBusy(btn, busy, label) {
 // Wallet connect lives in wallet.js (plain script) so the button works
 // even if the chain module below fails to load.
 
-// Live reads
+// Live reads — dynamic import so a CDN failure shows a clear error
+// instead of silently killing the whole module.
+let genlayer = null;
 async function ensureClient() {
-  if (!client) client = createClient({ chain: studionet });
+  if (!genlayer) {
+    try {
+      genlayer = await Promise.race([
+        Promise.all([import("genlayer-js"), import("genlayer-js/chains")]).then(([g, c]) => ({ createClient: g.createClient, studionet: c.studionet })),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("CDN timeout — genlayer-js failed to load from esm.sh")), 15000)),
+      ]);
+    } catch (e) {
+      throw new Error("Chain module failed to load (" + e.message + "). Check connection / ad-blocker, then refresh.");
+    }
+  }
+  if (!client) client = genlayer.createClient({ chain: genlayer.studionet });
   $("contractAddr").textContent = CONTRACT;
   $("relayAddr").textContent = RELAY;
   return client;
