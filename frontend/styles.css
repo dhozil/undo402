@@ -11,6 +11,7 @@
   --radius: 20px;
 }
 * { box-sizing: border-box; }
+section[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body { margin: 0; font-family: Inter, system-ui, sans-serif; color: var(--text); background: var(--bg); overflow-x: hidden; }
 img, table, pre { max-width: 100%; }
