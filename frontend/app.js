@@ -80,16 +80,16 @@ async function loadPayments() {
     if (labels) labels.innerHTML = Object.keys(dist).map((k) => `<span>${k}</span>`).join("");
     const filter = $("fFilter")?.value || "";
     const shown = filter ? payments.filter((p) => p.state === filter) : payments;
-    // Populate Payment ID dropdown (live, all payments)
+    // Populate Payment ID dropdown — only payments where the connected
+    // wallet is buyer OR seller. Unrelated payments never appear.
     const dd = $("aPid");
     if (dd && dd.tagName === "SELECT") {
       const cur = dd.value;
-      const mine = window.__walletAddr ? payments.filter((p) => String(p.seller || "").toLowerCase() === window.__walletAddr.toLowerCase() || String(p.buyer || "").toLowerCase() === window.__walletAddr.toLowerCase()) : [];
-      dd.innerHTML = `<option value="">— choose a payment (${payments.length} total) —</option>` + payments.map((p) => {
-        const isMine = mine.includes(p) ? " ★" : "";
-        return `<option value="${esc(p.id)}">${esc(p.id)}${isMine} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`;
-      }).join("");
-      if (cur) dd.value = cur;
+      const wallet = window.__walletAddr ? String(window.__walletAddr).toLowerCase() : "";
+      const mine = wallet ? payments.filter((p) => String(p.seller || "").toLowerCase() === wallet || String(p.buyer || "").toLowerCase() === wallet) : payments;
+      dd.innerHTML = `<option value="">— choose a payment${wallet ? ` (${mine.length} yours)` : ` (${payments.length} total)`} —</option>` + mine.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
+      if (!mine.length && wallet) dd.innerHTML += `<option disabled>No payments for this wallet yet</option>`;
+      if (cur && mine.some((p) => p.id === cur)) dd.value = cur;
       dd.dispatchEvent(new Event("input"));
     }
     if (!shown?.length) { paymentsEl.innerHTML = `<div class="empty-state"><strong>No payments ${filter ? "match this filter" : "yet"}</strong>${filter ? "Try another status above." : "Create your first payment — Step 1 above takes 2 minutes."}</div>`; return; }
