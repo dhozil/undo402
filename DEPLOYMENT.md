@@ -34,10 +34,11 @@
 
 Run: `UNDO402_CONTRACT_ADDRESS=0x6C7e… ESCROW=0xC4ac… node scripts/e2e_release_partial.mjs` (release) / `scripts/e2e_release2.mjs` (GitHub delivery)
 
-## Wallets (`D:\Genlayer-project\wallet`)
+## Wallets (external, never committed)
 
-- Relay/seller: `seller.json` → `0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3`
-- Buyer: `recipient.json` → `0x0Eb9431eDdbF170d2224F4f9E47D4DD68b6c44bc`
+- Relay/seller: `seller.json` in `$WALLET_DIR` → `0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3`
+- Buyer: `recipient.json` in `$WALLET_DIR` → `0x0Eb9431eDdbF170d2224F4f9E47D4DD68b6c44bc`
+- Set `WALLET_DIR=/path/to/wallet` or `GENLAYER_PRIVATE_KEY` on the server. Private keys are never in this repo.
 
 ## Redeploy GenLayer
 

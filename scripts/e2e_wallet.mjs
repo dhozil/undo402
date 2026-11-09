@@ -1,10 +1,10 @@
 // E2E v6 (stablecoin-based): GenLayer adjudicates, USDC moves on Base escrow.
-// Usage: UNDO402_CONTRACT_ADDRESS=0x... node scripts/e2e_wallet.mjs
-import { readFileSync } from "fs";
+// Usage: WALLET_DIR=/path/to/wallet UNDO402_CONTRACT_ADDRESS=0x... node scripts/e2e_wallet.mjs
+import { sellerWallet, buyerWallet } from "./wallet.mjs";
 import { getClient, createPayment, submitDelivery, openDispute, resolveDispute, getPayment } from "../api/relay.mjs";
 
-const seller = JSON.parse(readFileSync("D:/Genlayer-project/wallet/seller.json", "utf8"));
-const recipient = JSON.parse(readFileSync("D:/Genlayer-project/wallet/recipient.json", "utf8"));
+const seller = sellerWallet();
+const recipient = buyerWallet();
 
 process.env.GENLAYER_PRIVATE_KEY = seller.privateKey;
 process.env.GENLAYER_RPC_URL = process.env.GENLAYER_RPC_URL || "https://studio.genlayer.com/api";

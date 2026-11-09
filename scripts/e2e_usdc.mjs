@@ -1,13 +1,13 @@
 // Full USDC E2E: Base escrow (real USDC) + GenLayer verdict (StudioNet)
-// Usage: UNDO402_CONTRACT_ADDRESS=0x... ESCROW=0x... node scripts/e2e_usdc.mjs
-import { readFileSync } from "fs";
+// Usage: WALLET_DIR=/path/to/wallet UNDO402_CONTRACT_ADDRESS=0x... ESCROW=0x... node scripts/e2e_usdc.mjs
+import { sellerWallet, buyerWallet } from "./wallet.mjs";
 import { createWalletClient, createPublicClient, http, getAddress, formatUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { getClient, createPayment, submitDelivery, openDispute, resolveDispute, getPayment } from "../api/relay.mjs";
 
-const seller = JSON.parse(readFileSync("D:/Genlayer-project/wallet/seller.json", "utf8"));
-const buyer = JSON.parse(readFileSync("D:/Genlayer-project/wallet/recipient.json", "utf8"));
+const seller = sellerWallet();
+const buyer = buyerWallet();
 const USDC = getAddress("0x036cbd53842c5426634e7929541ec2318f3dcf7e");
 const ESCROW = getAddress(process.env.ESCROW);
 const AMOUNT = 1000000n; // 1 USDC

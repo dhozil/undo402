@@ -1,12 +1,12 @@
 // Release E2E v2: GitHub API delivery -> AI release -> USDC to seller
-import { readFileSync } from "fs";
+import { sellerWallet, buyerWallet } from "./wallet.mjs";
 import { createWalletClient, createPublicClient, http, getAddress, formatUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { getClient, createPayment, submitDelivery, openDispute, resolveDispute, getPayment } from "../api/relay.mjs";
 
-const seller = JSON.parse(readFileSync("D:/Genlayer-project/wallet/seller.json", "utf8"));
-const buyer = JSON.parse(readFileSync("D:/Genlayer-project/wallet/recipient.json", "utf8"));
+const seller = sellerWallet();
+const buyer = buyerWallet();
 const USDC = getAddress("0x036cbd53842c5426634e7929541ec2318f3dcf7e");
 const ESCROW = getAddress(process.env.ESCROW);
 const AMOUNT = 1000000n;

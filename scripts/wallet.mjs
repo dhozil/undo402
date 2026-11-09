@@ -1,9 +1,9 @@
-// Wallet loader — reads from WALLET_DIR env or local wallet folder.
-// Never commit private keys. Set WALLET_DIR=/path/to/wallet on the server.
+// Wallet loader — reads from WALLET_DIR env (never commit private keys).
+// Set WALLET_DIR=/path/to/wallet on the server, or GENLAYER_PRIVATE_KEY directly.
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const DIR = process.env.WALLET_DIR || "D:/Genlayer-project/wallet";
+const DIR = process.env.WALLET_DIR || "./wallet";
 
 export function loadWallet(name) {
   return JSON.parse(readFileSync(join(DIR, name), "utf8"));
