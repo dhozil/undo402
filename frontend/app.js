@@ -80,6 +80,14 @@ async function loadPayments() {
     if (labels) labels.innerHTML = Object.keys(dist).map((k) => `<span>${k}</span>`).join("");
     const filter = $("fFilter")?.value || "";
     const shown = filter ? payments.filter((p) => p.state === filter) : payments;
+    // Populate Payment ID dropdown (live, all payments)
+    const dd = $("aPid");
+    if (dd && dd.tagName === "SELECT") {
+      const cur = dd.value;
+      dd.innerHTML = `<option value="">— choose a payment —</option>` + payments.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
+      if (cur) dd.value = cur;
+      dd.dispatchEvent(new Event("input"));
+    }
     if (!shown?.length) { paymentsEl.innerHTML = `<div class="empty-state"><strong>No payments ${filter ? "match this filter" : "yet"}</strong>${filter ? "Try another status above." : "Create your first payment — Step 1 above takes 2 minutes."}</div>`; return; }
     const PLAIN = {
       FUNDED: "💰 Waiting for delivery — USDC locked in escrow",
