@@ -132,10 +132,18 @@
   var USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
   async function baseClient() {
     if (!window.ethereum) throw new Error("Connect MetaMask first.");
-    const { createWalletClient, createPublicClient, http } = await import("viem");
+    const { createWalletClient, createPublicClient, http, custom } = await import("viem");
     const { baseSepolia } = await import("viem/chains");
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const address = accounts[0];
+    if (!address) throw new Error("No account shared by wallet.");
+    try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x14a34" }] }); } catch (e) {
+      if (e.code === 4902 || e.code === -32603) {
+        await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: "0x14a34", chainName: "Base Sepolia", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: ["https://sepolia.base.org"], blockExplorerUrls: ["https://sepolia.basescan.org"] }] });
+      }
+    }
     const pub = createPublicClient({ chain: baseSepolia, transport: http("https://sepolia.base.org") });
-    const wallet = createWalletClient({ chain: baseSepolia, transport: http("https://sepolia.base.org"), account: window.ethereum });
+    const wallet = createWalletClient({ chain: baseSepolia, transport: custom(window.ethereum), account: address });
     return { pub, wallet };
   }
   async function baseWrite(fn, args, label) {
