@@ -36,7 +36,7 @@ code { font-family: "JetBrains Mono", monospace; font-size: .82em; background: r
 .accent { background: linear-gradient(90deg, #2dd4a7, #5eead4, #a78bfa); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 /* Glass nav */
-.nav { position: sticky; top: 14px; z-index: 20; margin: 14px auto 0; max-width: 1180px; width: calc(100% - clamp(16px, 4vw, 48px) * 2); display: flex; align-items: center; gap: 2rem; padding: .8rem 1.4rem; background: rgba(10,16,26,.55); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.nav { position: sticky; top: 14px; z-index: 20; margin: 14px auto 0; max-width: 1600px; width: calc(100% - clamp(16px, 4vw, 48px) * 2); display: flex; align-items: center; gap: 2rem; padding: .8rem 1.4rem; background: rgba(10,16,26,.55); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
 .nav nav { display: flex; gap: 1.4rem; }
 .nav a { color: var(--muted); text-decoration: none; font-weight: 500; font-size: .95rem; position: relative; padding: .3rem 0; transition: color .2s; }
 .nav a:hover { color: #fff; }
@@ -47,8 +47,8 @@ code { font-family: "JetBrains Mono", monospace; font-size: .82em; background: r
 .nav-actions { margin-left: auto; display: flex; gap: .6rem; align-items: center; }
 .badge { font-size: .72rem; border: 1px solid var(--border); padding: .4rem .75rem; border-radius: 999px; background: rgba(255,255,255,.05); color: var(--muted); backdrop-filter: blur(10px); }
 
-main { width: 100%; max-width: 1180px; margin: 0 auto; padding: 1rem clamp(16px, 4vw, 48px) 4rem; position: relative; }
-.hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 2.5rem; padding: 2rem 0; align-items: center; min-height: calc(100vh - 180px); animation: rise .7s ease both; }
+main { width: 100%; max-width: 1600px; margin: 0 auto; padding: 1rem clamp(16px, 4vw, 48px) 4rem; position: relative; }
+.hero { display: grid; grid-template-columns: 1.3fr .7fr; gap: 3rem; padding: 2rem 0; align-items: center; min-height: calc(100vh - 180px); animation: rise .7s ease both; }
 .hero h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: .95; margin: .2rem 0 1rem; font-weight: 700; }
 .eyebrow { text-transform: uppercase; letter-spacing: .2em; font-size: .7rem; font-weight: 700; color: var(--accent); }
 .lede { font-size: 1.15rem; line-height: 1.65; color: #c3cedb; }
@@ -82,8 +82,8 @@ main { width: 100%; max-width: 1180px; margin: 0 auto; padding: 1rem clamp(16px,
 .flow-mini i { color: var(--accent); font-style: normal; font-weight: 700; }
 
 .split, .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.3rem; }
-.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.3rem; }
-.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.3rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.3rem; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.3rem; }
 .step { position: relative; }
 .step::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), transparent); border-radius: 2px; }
 .step .num { font-family: "JetBrains Mono", monospace; color: var(--accent); font-weight: 700; font-size: .8rem; letter-spacing: .1em; }
