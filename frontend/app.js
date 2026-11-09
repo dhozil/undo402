@@ -2,7 +2,7 @@
 import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 
-const CONTRACT = "0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660";
+const CONTRACT = "0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc";
 const EXPLORER = "https://explorer-studio.genlayer.com";
 const RELAY = "0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3";
 

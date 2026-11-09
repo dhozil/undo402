@@ -3,7 +3,7 @@
 // signing via genlayer-js (works on Vercel for any visitor, no backend).
 (function () {
   var API = "http://localhost:8000";
-  var CONTRACT = "0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660";
+  var CONTRACT = "0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc";
   function $(id) { return document.getElementById(id); }
   function toast(msg, kind) {
     var box = document.getElementById("toasts");

@@ -22,7 +22,7 @@ BASE = Path(__file__).resolve().parent.parent
 app = FastAPI(title="Undo402 Dispute API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660")
+CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc")
 STUDIONET_RPC = "https://studio.genlayer.com/api"
 CHAIN_ID = 61999
 Rail = Literal["x402", "chain", "card"]
@@ -36,6 +36,7 @@ class CreatePayment(BaseModel):
     payment_proof: str
     amount_usdc: int = Field(default=1000000, gt=0)
     ttl_seconds: int = 86400
+    evidence_urls: str = ""
 
 
 class Delivery(BaseModel):
@@ -97,7 +98,7 @@ def health():
 @app.post("/payments", status_code=201)
 def create_payment(body: CreatePayment):
     _validate_proof(body.rail, body.payment_proof)
-    return _call("create_payment", [body.actor_address, body.seller, body.rail, body.criteria, body.payment_proof, body.amount_usdc, body.ttl_seconds])
+    return _call("create_payment", [body.actor_address, body.seller, body.rail, body.criteria, body.payment_proof, body.amount_usdc, body.ttl_seconds, body.evidence_urls])
 
 
 @app.post("/payments/{payment_id}/delivery")

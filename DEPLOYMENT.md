@@ -4,10 +4,12 @@
 
 | Contract | Address |
 |---|---|
-| **Undo402 v6 (single, stablecoin-based)** ⭐ | `0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660` |
+| **Undo402 v7 (evidence manifest + conserved + timeout)** ⭐ | `0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc` |
+| Undo402 v6 (stablecoin adjudication) | `0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660` |
 
 - Relay = seller wallet `0x99bF…D5Db3`, registered type `undo402-case`, self-registered case 0
-- E2E `pay-1`: 1 USDC recorded → delivery → dispute → **refund verdict + attestation `e915a328…`** ✅
+- v7 adds (Sacramentum adoption): evidence manifest (max 3 https sources, committed at create), `total_recorded_usdc`/`total_settled_usdc` conserved tracking + `get_stats`, undetermined 1h grace → neutral 50/50 via `claim_timeout`
+- E2E `pay-1` (v6): 1 USDC recorded → delivery → dispute → **refund verdict + attestation `e915a328…`** ✅
 - Previous GEN-escrow versions (v1–v5) superseded — GEN was a proxy, now removed
 
 ## Base Sepolia (real USDC escrow) — LIVE

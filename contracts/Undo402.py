@@ -118,6 +118,7 @@ class Payment:
     proposed_seller: str
     human_verdict: str
     human_reason: str
+    unresolved_at: u256
 
 
 class Undo402(gl.Contract):
@@ -126,6 +127,9 @@ class Undo402(gl.Contract):
     payments: TreeMap[str, Payment]
     payment_order: DynArray[str]
     payment_count: u256
+    payment_sources: TreeMap[str, DynArray[str]]
+    total_recorded_usdc: u256
+    total_settled_usdc: u256
     # Factory registry (merged from Undo402Factory — single contract)
     case_registry: TreeMap[u256, str]
     case_next_id: u256
@@ -138,6 +142,8 @@ class Undo402(gl.Contract):
         self.relay_address = gl.message.sender_address
         self.payment_count = u256(0)
         self.case_next_id = u256(0)
+        self.total_recorded_usdc = u256(0)
+        self.total_settled_usdc = u256(0)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -149,6 +155,20 @@ class Undo402(gl.Contract):
         if isinstance(value, str):
             return Address(value)
         return value
+
+    def _parse_sources(self, raw: str) -> list:
+        """Sacramentum evidence manifest: newline-separated https URLs, max 3, immutable."""
+        urls = []
+        for line in str(raw).split("\n"):
+            u = line.strip()
+            if not u:
+                continue
+            if not u.startswith("https://"):
+                raise gl.vm.UserError(f"{ERROR_EXPECTED} source url must start with https://: {u}")
+            urls.append(u[:512])
+        if len(urls) > 3:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} at most 3 evidence sources allowed")
+        return urls
 
     def _resolve_actor(self, claimed_actor) -> Address:
         """TreasuryPilot relay pattern: relay may act for a user, direct
@@ -183,6 +203,7 @@ class Undo402(gl.Contract):
     def _settle(self, payment: Payment, decision: str, refund_percent: int) -> None:
         # No GEN moves here. Real USDC settlement happens on Base escrow
         # via the relay reading verdict + attestation_digest.
+        self.total_settled_usdc = u256(int(self.total_settled_usdc) + int(payment.amount_usdc))
         if decision == "release":
             payment.state = "RELEASED"
         elif decision == "refund":
@@ -210,10 +231,12 @@ class Undo402(gl.Contract):
         payment_proof: str,
         amount_usdc: u256,
         ttl_seconds: u256,
+        evidence_urls: str,
     ) -> str:
         actor = self._resolve_actor(actor_address)
         if int(amount_usdc) == 0:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Zero USDC amount")
+        sources = self._parse_sources(evidence_urls)
         if rail not in ALLOWED_RAILS:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid rail: {rail}")
         self._validate_payment_proof(rail, payment_proof)
@@ -253,7 +276,10 @@ class Undo402(gl.Contract):
             proposed_seller="",
             human_verdict="",
             human_reason="",
+            unresolved_at=u256(0),
         )
+        self.payment_sources[payment_id] = sources
+        self.total_recorded_usdc = u256(int(self.total_recorded_usdc) + int(amount_usdc))
         self.payment_order.append(payment_id)
         return payment_id
 
@@ -284,11 +310,21 @@ class Undo402(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid state: {payment.state}")
         payment.state = "RELEASED"
         payment.verdict = "release"
+        self.total_settled_usdc = u256(int(self.total_settled_usdc) + int(payment.amount_usdc))
 
     @gl.public.write
     def claim_timeout(self, actor_address: str, payment_id: str) -> None:
         actor = self._resolve_actor(actor_address)
         payment = self.payments[payment_id]
+        # Sacramentum backstop: DISPUTED + undetermined for >1h -> neutral 50/50
+        if payment.state == "DISPUTED" and payment.verdict == "undetermined":
+            if int(payment.unresolved_at) == 0 or self._now() <= int(payment.unresolved_at) + 3600:
+                raise gl.vm.UserError(f"{ERROR_EXPECTED} Unresolved grace not reached")
+            payment.verdict = "partial"
+            payment.refund_percent = u256(50)
+            payment.verdict_reason = "Unresolved grace timeout: neutral 50/50 split"
+            self._settle(payment, "partial", 50)
+            return
         if actor != payment.buyer:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Only buyer can claim timeout")
         if payment.state not in ("FUNDED", "DELIVERED"):
@@ -298,6 +334,7 @@ class Undo402(gl.Contract):
         payment.state = "REFUNDED"
         payment.verdict = "refund"
         payment.refund_percent = u256(100)
+        self.total_settled_usdc = u256(int(self.total_settled_usdc) + int(payment.amount_usdc))
 
     @gl.public.write
     def open_dispute(self, actor_address: str, payment_id: str, reason: str) -> None:
@@ -511,10 +548,11 @@ Quote specific evidence in reason. Return ONLY JSON: {{"decision": "refund"|"rel
 
         if decision == "undetermined":
             # No settlement on undetermined: stay DISPUTED so anyone can retry
-            # for free. Record the attempt so the UI can surface it.
+            # for free. Stamp the clock for the 1h grace timeout backstop.
             payment.state = "DISPUTED"
+            payment.unresolved_at = u256(self._now())
             return decision
-
+        payment.unresolved_at = u256(0)
         self._settle(payment, decision, refund_percent)
         return decision
 
@@ -657,3 +695,18 @@ Quote specific evidence in reason. Return ONLY JSON: {{"decision": "refund"|"rel
     @gl.public.view
     def get_owner(self) -> str:
         return str(self.owner)
+
+    @gl.public.view
+    def get_stats(self) -> dict:
+        return {
+            "payment_count": str(self.payment_count),
+            "total_recorded_usdc": str(self.total_recorded_usdc),
+            "total_settled_usdc": str(self.total_settled_usdc),
+            "conserved": str(int(self.total_recorded_usdc) >= int(self.total_settled_usdc)),
+        }
+
+    @gl.public.view
+    def get_sources(self, payment_id: str) -> list:
+        if payment_id not in self.payment_sources:
+            return []
+        return [str(x) for x in self.payment_sources[payment_id]]

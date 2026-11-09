@@ -22,6 +22,7 @@ def _create(direct_vm, direct_deploy, direct_alice, direct_bob, rail="x402", cri
         proof,
         ONE_USDC,
         86400,
+        "https://example.com/spec",
     )
     return contract, pid
 
@@ -41,16 +42,16 @@ def test_create_rejects_zero_self_and_bad_proof(direct_vm, direct_deploy, direct
     contract = direct_deploy("contracts/Undo402.py")
     direct_vm.sender = direct_alice
     with direct_vm.expect_revert("[EXPECTED] Zero USDC amount"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", PROOF, 0, 86400)
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", PROOF, 0, 86400, "")
 
     with direct_vm.expect_revert("[EXPECTED] Cannot pay yourself"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", PROOF, ONE_USDC, 86400)
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", PROOF, ONE_USDC, 86400, "")
 
     with direct_vm.expect_revert("[EXPECTED] Invalid rail: cash"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "cash", "criteria", PROOF, ONE_USDC, 86400)
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "cash", "criteria", PROOF, ONE_USDC, 86400, "")
 
     with direct_vm.expect_revert("[EXPECTED] Invalid payment proof for rail x402: expected 0x tx hash"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", "0xproof123", ONE_USDC, 86400)
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", "0xproof123", ONE_USDC, 86400, "")
 
 
 def test_relay_cannot_be_impersonated(direct_vm, direct_deploy, direct_alice, direct_bob, direct_charlie):
@@ -213,3 +214,18 @@ def test_factory_requires_registered_type(direct_vm, direct_deploy, direct_alice
     direct_vm.sender = direct_alice
     with direct_vm.expect_revert("[EXPECTED] Contract type not registered"):
         contract.register_case("0x2222222222222222222222222222222222222222", "unknown", "{}")
+
+
+def test_evidence_manifest_and_stats(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract, pid = _create(direct_vm, direct_deploy, direct_alice, direct_bob)
+    assert contract.get_sources(pid) == ["https://example.com/spec"]
+    stats = contract.get_stats()
+    assert stats["total_recorded_usdc"] == str(ONE_USDC)
+    assert stats["conserved"] == "True"
+
+
+def test_sources_must_be_https(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = direct_deploy("contracts/Undo402.py")
+    direct_vm.sender = direct_alice
+    with direct_vm.expect_revert("[EXPECTED] source url must start with https://: http://example.com/spec"):
+        contract.create_payment(_addr(direct_alice), _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, "http://example.com/spec")
