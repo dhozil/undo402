@@ -84,7 +84,9 @@ async function loadPayments() {
     const dd = $("aPid");
     if (dd && dd.tagName === "SELECT") {
       const cur = dd.value;
-      dd.innerHTML = `<option value="">— choose a payment —</option>` + payments.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
+      const mine = window.__walletAddr ? payments.filter((p) => p.seller?.toLowerCase() === window.__walletAddr.toLowerCase() || p.buyer?.toLowerCase() === window.__walletAddr.toLowerCase()) : [];
+      const list = mine.length ? mine : payments;
+      dd.innerHTML = `<option value="">— choose a payment${mine.length ? ` (${mine.length} yours)` : ""} —</option>` + list.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
       if (cur) dd.value = cur;
       dd.dispatchEvent(new Event("input"));
     }

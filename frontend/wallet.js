@@ -17,8 +17,10 @@
       btn.textContent = "Connecting…";
       var addr = await window.ethereum.request({ method: "eth_requestAccounts" });
       var account = addr[0];
+      window.__walletAddr = account;
       btn.textContent = account.slice(0, 6) + "…" + account.slice(-4);
       toast("Wallet connected: <code>" + account + "</code>", "success");
+      if (window.loadPayments) window.loadPayments();
     } catch (e) {
       btn.textContent = "Connect wallet";
       toast("<strong>Connection failed:</strong> " + e.message, "error");
