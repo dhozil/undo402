@@ -38,6 +38,43 @@ def test_create_and_read(direct_vm, direct_deploy, direct_alice, direct_bob):
     assert contract.get_payment_count() == "1"
 
 
+def test_create_with_id_matches_base_escrow(direct_vm, direct_deploy, direct_alice, direct_bob):
+    """Steward path: the Base escrow id and the GenLayer case id must match."""
+    contract = direct_deploy("contracts/Undo402.py")
+    direct_vm.sender = direct_alice
+    pid = contract.create_payment_with_id(
+        _addr(direct_alice),
+        "pay-steward-1",
+        _addr(direct_bob),
+        "x402",
+        "criteria",
+        PROOF,
+        ONE_USDC,
+        86400,
+        "",
+    )
+    assert pid == "pay-steward-1"
+    assert contract.get_payment("pay-steward-1")["state"] == "FUNDED"
+    assert contract.get_payment_count() == "1"
+
+    with direct_vm.expect_revert("[EXPECTED] Payment id already exists"):
+        contract.create_payment_with_id(
+            _addr(direct_alice), "pay-steward-1", _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, ""
+        )
+
+    with direct_vm.expect_revert("[EXPECTED] Invalid payment id"):
+        contract.create_payment_with_id(
+            _addr(direct_alice), "bad id!", _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, ""
+        )
+
+    # Legacy auto-id still works and does not collide with the custom id.
+    auto_pid = contract.create_payment(
+        _addr(direct_alice), _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, ""
+    )
+    assert auto_pid == "pay-2"
+    assert contract.get_payment_count() == "2"
+
+
 def test_create_rejects_zero_self_and_bad_proof(direct_vm, direct_deploy, direct_alice):
     contract = direct_deploy("contracts/Undo402.py")
     direct_vm.sender = direct_alice

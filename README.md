@@ -6,9 +6,9 @@
 
 [![StudioNet](https://img.shields.io/badge/GenLayer-StudioNet-61999-2dd4a7)](https://studio.genlayer.com)
 [![Base Sepolia](https://img.shields.io/badge/Base-Sepolia-USDC-0a7d5c)](https://sepolia.basescan.org)
-[![Tests](https://img.shields.io/badge/tests-16_passing-0a7d5c)](tests/direct/)
-[![Contract](https://img.shields.io/badge/Undo402-0x6C7e…3660-7c5cff)](https://explorer-studio.genlayer.com/address/0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660)
-[![Escrow](https://img.shields.io/badge/Escrow-0x2aa3…Fde8-e4572e)](https://sepolia.basescan.org/address/0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8)
+[![Tests](https://img.shields.io/badge/tests-31_passing-0a7d5c)](tests/)
+[![Contract](https://img.shields.io/badge/Undo402-0x9022…Fb5a-7c5cff)](https://explorer-studio.genlayer.com/address/0x9022290256C9b4B243fD4519b9857c83e45fFb5a)
+[![Escrow](https://img.shields.io/badge/Escrow-0x8fcD…8c24-e4572e)](https://sepolia.basescan.org/address/0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24)
 
 **Agentic Commerce Infrastructure** — real USDC escrows on Base, decentralized AI-validator adjudication on GenLayer.
 
@@ -22,8 +22,8 @@
 
 | Layer | Network | Address |
 |---|---|---|
-| **Undo402** (adjudication) | StudioNet 61999 | `0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660` |
-| **Undo402Escrow** (USDC) | Base Sepolia 84532 | `0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8` |
+| **Undo402** (adjudication) | StudioNet 61999 | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
+| **Undo402Escrow** (USDC) | Base Sepolia 84532 | `0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24` |
 | **USDC** (testnet) | Base Sepolia | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
 ✅ **Proven live:** refund · release · partial — all three verdicts settled in real USDC on Base.
@@ -35,7 +35,7 @@ cd frontend && python -m http.server 8099
 
 # API (live relay)
 pip install fastapi uvicorn pydantic
-UNDO402_CONTRACT_ADDRESS=0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660 uvicorn api.app:app --port 8000
+UNDO402_CONTRACT_ADDRESS=0x9022290256C9b4B243fD4519b9857c83e45fFb5a uvicorn api.app:app --port 8000
 ```
 
 ---
@@ -99,7 +99,7 @@ Relay settles on Base ──▶ release / refund / partial
 | **Undo402Escrow** | `contracts/base/Undo402Escrow.sol` | Real USDC escrow on Base |
 | **Dispute API** | `api/app.py` + `api/relay.mjs` | Live relay: frontend → StudioNet → Base |
 | **Frontend** | `frontend/` | Landing · How · Integrations · Dashboard · Contracts |
-| **Tests** | `tests/direct/` | 16 direct tests (payments, factory, relay, verdicts) |
+| **Tests** | `tests/direct/` + `tests/base/` | 19 direct + 12 Foundry (binding, exactly-once) |
 
 ---
 
@@ -108,7 +108,8 @@ Relay settles on Base ──▶ release / refund / partial
 ### Undo402 (GenLayer)
 
 ```python
-create_payment(actor, seller, rail, criteria, payment_proof, amount_usdc, ttl)  # records USDC payment
+create_payment(actor, seller, rail, criteria, payment_proof, amount_usdc, ttl)  # auto id pay-N
+create_payment_with_id(actor, payment_id, seller, rail, criteria, payment_proof, amount_usdc, ttl)  # Base escrow id == case id
 submit_delivery(actor, payment_id, delivery_url, note)
 accept / claim_timeout / open_dispute / submit_counter_evidence
 propose_outcome(actor, payment_id, outcome)        # 2-of-2 mutual, no jury
@@ -121,12 +122,17 @@ get_payment / get_payments / get_case_count        # views
 ### Undo402Escrow (Base)
 
 ```solidity
-createEscrow(paymentId, seller, amount, ttlSeconds)   // buyer locks USDC
-release(paymentId, attestation)                       // → seller
-refund(paymentId, attestation)                        // → buyer
-releasePartial(paymentId, sellerPercent, attestation) // → split
-claimTimeout(paymentId)                               // buyer, after deadline (anti-stuck)
+createEscrow(paymentId, seller, amount, ttlSeconds)          // buyer locks USDC
+release(paymentId, score, attestation)                       // → seller
+refund(paymentId, score, attestation)                        // → buyer
+releasePartial(paymentId, sellerPercent, score, attestation) // → split
+claimTimeout(paymentId)                                      // buyer, after deadline (anti-stuck)
 ```
+
+Every settlement call must present the SHA-256 attestation GenLayer produced
+for that exact case. The escrow recomputes it on-chain (payment id, verdict,
+score, refund split, buyer, seller), so empty or arbitrary attestations revert
+and each case settles at most once. See [`docs/SETTLEMENT.md`](docs/SETTLEMENT.md).
 
 ---
 
@@ -158,9 +164,9 @@ contracts/
   base/Undo402Escrow.sol      # Base USDC escrow
 api/       app.py · relay.mjs # Live Dispute API relay
 frontend/  index.html · app.js · router.js · styles.css
-scripts/   e2e_*.mjs · api_call.mjs · wallet.mjs
-tests/     direct/test_undo402.py (16 tests)
-docs/      ANALYSIS · ARCHITECTURE · AUDIT_PATTERN · GENLAYER_REVIEW
+scripts/   settle.mjs · e2e_*.mjs · api_call.mjs · wallet.mjs
+tests/     direct/test_undo402.py · base/Undo402Escrow.t.sol
+docs/      SETTLEMENT · ANALYSIS · ARCHITECTURE · AUDIT_PATTERN · GENLAYER_REVIEW
 DEPLOYMENT.md · VERCEL.md
 ```
 
@@ -170,14 +176,16 @@ DEPLOYMENT.md · VERCEL.md
 
 ```bash
 genvm-lint check contracts/Undo402.py   # lint + validate
-pytest tests/direct/ -v                  # 16 passed
-UNDO402_CONTRACT_ADDRESS=0x6C7e… node scripts/e2e_wallet.mjs  # live E2E
+pytest tests/direct/ -v                  # direct tests
+forge test -vv                           # escrow binding + exactly-once (12 tests)
+WALLET_DIR=/path/to/wallet node scripts/settle.mjs --payment pay-1 --check
 ```
 
 ---
 
 ## 📚 Docs
 
+- [`docs/SETTLEMENT.md`](docs/SETTLEMENT.md) — idempotent verdict → Base settlement path, attestation binding
 - [`docs/ANALYSIS.md`](docs/ANALYSIS.md) — market & ecosystem (Internet Court, x402, ERC-8004)
 - [`docs/AUDIT_PATTERN.md`](docs/AUDIT_PATTERN.md) — pattern audit vs InternetCourt / TreasuryPilot / Nexa
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — equivalence principle, multi-rail design

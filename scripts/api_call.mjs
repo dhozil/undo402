@@ -14,7 +14,7 @@ const [fn, argsJson] = process.argv.slice(2);
 const args = argsJson ? JSON.parse(argsJson) : [];
 const client = getClient();
 
-const WRITE_FNS = new Set(["create_payment","submit_delivery","accept","claim_timeout","open_dispute","submit_counter_evidence","propose_outcome","resolve_dispute","human_resolve","set_relay","register_type","register_case"]);
+const WRITE_FNS = new Set(["create_payment","create_payment_with_id","submit_delivery","accept","claim_timeout","open_dispute","submit_counter_evidence","propose_outcome","resolve_dispute","human_resolve","set_relay","register_type","register_case"]);
 try {
   const out = WRITE_FNS.has(fn) ? await write(client, fn, args) : await read(client, fn, args);
   console.log(JSON.stringify({ ok: true, ...out }));

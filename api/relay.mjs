@@ -50,8 +50,10 @@ export async function read(client, functionName, args) {
   return client.readContract({ address: CONTRACT(), functionName, args });
 }
 
-export const createPayment = (c, actor, seller, rail, criteria, proof, ttl, amountUsdc, evidenceUrls = "") =>
-  write(c, "create_payment", [actor, seller, rail, criteria, proof, BigInt(amountUsdc), BigInt(ttl), evidenceUrls]);
+export const createPayment = (c, actor, seller, rail, criteria, proof, ttl, amountUsdc, evidenceUrls = "", paymentId = "") =>
+  paymentId
+    ? write(c, "create_payment_with_id", [actor, paymentId, seller, rail, criteria, proof, BigInt(amountUsdc), BigInt(ttl), evidenceUrls])
+    : write(c, "create_payment", [actor, seller, rail, criteria, proof, BigInt(amountUsdc), BigInt(ttl), evidenceUrls]);
 
 export const submitDelivery = (c, actor, id, url, note) => write(c, "submit_delivery", [actor, id, url, note]);
 export const accept = (c, actor, id) => write(c, "accept", [actor, id]);

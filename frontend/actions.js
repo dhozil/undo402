@@ -3,7 +3,7 @@
 // signing via genlayer-js (works on Vercel for any visitor, no backend).
 (function () {
   var API = (window.UNDO402 && window.UNDO402.API_URL) || "http://localhost:8000";
-  var CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7";
+  var CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
   function $(id) { return document.getElementById(id); }
   function toast(msg, kind) {
     var box = document.getElementById("toasts");
@@ -106,11 +106,19 @@
     });
   }
 
-  bind("btnCreate", function (btn) { apiWrite("/payments", {
-    actor_address: $("fBuyer").value, seller: $("fSeller").value, rail: $("fRail").value,
-    criteria: $("fCriteria").value, payment_proof: $("fProof").value,
-    amount_usdc: Math.round(parseFloat($("fAmount").value || "0") * 1000000), ttl_seconds: 86400, evidence_urls: "",
-  }, "create_payment", "create_payment", [$("fBuyer").value, $("fSeller").value, $("fRail").value, $("fCriteria").value, $("fProof").value, Math.round(parseFloat($("fAmount").value || "0") * 1000000), 86400, ""], btn); });
+  bind("btnCreate", function (btn) {
+    var pid = ($("ePid") && $("ePid").value || "").trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(pid)) {
+      toast("<strong>Payment ID invalid.</strong> Use 1-64 chars: letters, numbers, dot, underscore, colon, dash. It must match your Base escrow ID (Step 1).", "error");
+      return;
+    }
+    var amount = Math.round(parseFloat($("fAmount").value || "0") * 1000000);
+    apiWrite("/payments", {
+      payment_id: pid, actor_address: $("fBuyer").value, seller: $("fSeller").value, rail: $("fRail").value,
+      criteria: $("fCriteria").value, payment_proof: $("fProof").value,
+      amount_usdc: amount, ttl_seconds: 86400, evidence_urls: "",
+    }, "create_payment", "create_payment_with_id", [$("fBuyer").value, pid, $("fSeller").value, $("fRail").value, $("fCriteria").value, $("fProof").value, amount, 86400, ""], btn);
+  });
   bind("btnDelivery", function (btn) {
     var pid = $("aPid").value;
     var sellerAddr = $("fSeller").value || "0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3";
@@ -125,8 +133,8 @@
   bind("btnRefresh", function () { if (window.loadPayments) window.loadPayments(); else toast("Dashboard data module not loaded yet.", "error"); });
 
   // Base escrow actions (viem + MetaMask on Base Sepolia)
-  var ESCROW = "0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8";
-  var USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  var ESCROW = (window.UNDO402 && window.UNDO402.ESCROW_CONTRACT) || "0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24";
+  var USDC = (window.UNDO402 && window.UNDO402.USDC) || "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
   async function baseClient() {
     if (!window.ethereum) throw new Error("Connect MetaMask first.");
     const { createWalletClient, createPublicClient, http, custom } = await import("viem");
@@ -143,7 +151,7 @@
     const wallet = createWalletClient({ chain: baseSepolia, transport: custom(window.ethereum), account: address });
     return { pub, wallet };
   }
-  async function baseWrite(fn, args, label) {
+  async function baseWrite(fn, args, label, opts) {
     var btn = null;
     try {
       toast("<strong>" + label + "…</strong> check MetaMask (Base Sepolia)");
@@ -151,11 +159,18 @@
       const escrowAbi = {
         approve: [{ type: "function", name: "approve", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" }],
         createEscrow: [{ type: "function", name: "createEscrow", inputs: [{ type: "string" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }], outputs: [], stateMutability: "nonpayable" }],
-        refund: [{ type: "function", name: "refund", inputs: [{ type: "string" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
-        release: [{ type: "function", name: "release", inputs: [{ type: "string" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
+        refund: [{ type: "function", name: "refund", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
+        release: [{ type: "function", name: "release", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
+        releasePartial: [{ type: "function", name: "releasePartial", inputs: [{ type: "string" }, { type: "uint256" }, { type: "uint256" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
         claimTimeout: [{ type: "function", name: "claimTimeout", inputs: [{ type: "string" }], outputs: [], stateMutability: "nonpayable" }],
       };
       const addr = fn === "approve" ? USDC : ESCROW;
+      if (opts && opts.requireRelay) {
+        const rel = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "relay", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" }], functionName: "relay" });
+        if (String(rel).toLowerCase() !== String(wallet.account.address).toLowerCase()) {
+          throw new Error("Only the escrow relay (" + rel + ") can settle. Connect that wallet or run scripts/settle.mjs.");
+        }
+      }
       const h = await wallet.writeContract({ address: addr, abi: escrowAbi[fn], functionName: fn, args });
       await pub.waitForTransactionReceipt({ hash: h });
       toast("<strong>" + label + " success.</strong><br><a href=\"https://sepolia.basescan.org/tx/" + h + "\" target=\"_blank\" rel=\"noreferrer\">tx " + h.slice(0, 10) + "… ↗</a>" + (fn === "createEscrow" ? "<br><span class='muted'>Copy this tx hash into Proof field below 👇</span>" : ""), "success");
@@ -164,6 +179,50 @@
       toast("<strong>" + label + " failed:</strong> " + esc(e.message), "error");
     }
   }
+  // Verify the finalized GenLayer case before touching Base. This mirrors
+  // scripts/settle.mjs and the on-chain check in Undo402Escrow v4.
+  async function genPayment(pid) {
+    const { createClient } = await import("genlayer-js");
+    const { studionet } = await import("genlayer-js/chains");
+    const c = createClient({ chain: studionet });
+    return c.readContract({ address: CONTRACT, functionName: "get_payment", args: [pid] });
+  }
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+  }
+  async function baseSettle(expected) {
+    var pid = ($("ePid") && $("ePid").value || "").trim();
+    if (!pid) { toast("<strong>Payment ID required.</strong>", "error"); return; }
+    try {
+      toast("<strong>Verifying case " + esc(pid) + "…</strong> payment id, verdict, attestation and refund split");
+      const p = await genPayment(pid);
+      const wantState = expected === "release" ? "RELEASED" : expected === "refund" ? "REFUNDED" : "PARTIAL";
+      if (p.state !== wantState || p.verdict !== expected) {
+        throw new Error("Case " + pid + " is " + (p.state || "unknown") + " / " + (p.verdict || "no verdict") + ", not a finalized " + expected + " verdict.");
+      }
+      if (!/^[0-9a-fA-F]{64}$/.test(String(p.attestation_digest || ""))) {
+        throw new Error("Case " + pid + " has an empty/invalid attestation — refusing to settle.");
+      }
+      const { getAddress } = await import("viem");
+      const refundPercent = expected === "refund" ? 100n : expected === "release" ? 0n : BigInt(p.refund_percent);
+      if (expected === "partial" && (refundPercent < 1n || refundPercent > 99n)) {
+        throw new Error("Partial refund_percent must be 1..99, got " + refundPercent);
+      }
+      const payload = "undo402:" + p.id + "|" + expected + "|" + BigInt(p.verdict_score) + "|" + refundPercent + "|" + getAddress(p.buyer) + "|" + getAddress(p.seller);
+      const digest = await sha256Hex(payload);
+      if (digest !== String(p.attestation_digest).toLowerCase()) {
+        throw new Error("Attestation is not bound to " + pid + " (verdict/score/split/parties mismatch).");
+      }
+      const args = expected === "partial"
+        ? [pid, 100n - refundPercent, BigInt(p.verdict_score), digest]
+        : [pid, BigInt(p.verdict_score), digest];
+      await baseWrite(expected === "partial" ? "releasePartial" : expected, args, "Settle " + expected, { requireRelay: true });
+    } catch (e) {
+      toast("<strong>Settlement blocked:</strong> " + esc(e.message), "error");
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     var b1 = document.getElementById("btnApprove");
     if (b1) b1.addEventListener("click", function () {
@@ -182,14 +241,16 @@
     var b3 = document.getElementById("btnEscrowStatus");    if (b3) b3.addEventListener("click", async function () {
       try {
         const { pub } = await baseClient();
-        const e = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "getEscrow", inputs: [{ type: "string" }], outputs: [{ type: "tuple", components: [{ type: "address" }, { type: "address" }, { type: "uint256" }, { type: "uint8" }, { type: "string" }, { type: "string" }] }], stateMutability: "view" }], functionName: "getEscrow", args: [document.getElementById("ePid").value] });
-        document.getElementById("escrowOut").innerHTML = "Escrow: amount " + e[2].toString() + " µUSDC · status " + e[3] + " (0 none, 1 funded, 2 released, 3 refunded, 4 partial)";
+        const e = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "getEscrow", inputs: [{ type: "string" }], outputs: [{ type: "tuple", components: [{ type: "address" }, { type: "address" }, { type: "uint256" }, { type: "uint8" }, { type: "string" }, { type: "string" }, { type: "uint256" }] }], stateMutability: "view" }], functionName: "getEscrow", args: [document.getElementById("ePid").value] });
+        document.getElementById("escrowOut").innerHTML = "Escrow: amount " + e[2].toString() + " µUSDC · status " + e[3] + " (0 none, 1 funded, 2 released, 3 refunded, 4 partial)" + (e[5] ? " · attestation " + esc(String(e[5]).slice(0, 12)) + "…" : " · no attestation yet");
       } catch (err) { toast("<strong>Escrow read failed:</strong> " + esc(err.message), "error"); }
     });
     var b4 = document.getElementById("btnRefund");
-    if (b4) b4.addEventListener("click", function () { baseWrite("refund", [document.getElementById("ePid").value, ""], "Refund USDC"); });
+    if (b4) b4.addEventListener("click", function () { baseSettle("refund"); });
     var b5 = document.getElementById("btnRelease");
-    if (b5) b5.addEventListener("click", function () { baseWrite("release", [document.getElementById("ePid").value, ""], "Release USDC"); });
+    if (b5) b5.addEventListener("click", function () { baseSettle("release"); });
+    var b5p = document.getElementById("btnPartial");
+    if (b5p) b5p.addEventListener("click", function () { baseSettle("partial"); });
     var b6 = document.getElementById("btnTimeout");
     if (b6) b6.addEventListener("click", function () { baseWrite("claimTimeout", [document.getElementById("ePid").value], "Claim timeout"); });
     var bb = document.getElementById("btnBalance");

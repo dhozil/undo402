@@ -221,37 +221,29 @@ class Undo402(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Only owner can set relay")
         self.relay_address = self._addr(new_relay)
 
-    @gl.public.write
-    def create_payment(
+    def _validate_payment_id(self, payment_id: str) -> None:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}", payment_id or ""):
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid payment id (1-64 chars, [A-Za-z0-9._:-])")
+        if payment_id in self.payments:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Payment id already exists")
+
+    def _store_payment(
         self,
-        actor_address: str,
+        actor: Address,
+        payment_id: str,
         seller: str,
         rail: str,
         criteria: str,
         payment_proof: str,
         amount_usdc: u256,
         ttl_seconds: u256,
-        evidence_urls: str,
+        sources: list,
     ) -> str:
-        actor = self._resolve_actor(actor_address)
-        if int(amount_usdc) == 0:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Zero USDC amount")
-        sources = self._parse_sources(evidence_urls)
-        if rail not in ALLOWED_RAILS:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid rail: {rail}")
-        self._validate_payment_proof(rail, payment_proof)
-        if not criteria.strip():
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Empty criteria")
-        if len(criteria) > MAX_EVIDENCE_CHARS:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Criteria exceeds max length")
         seller_addr = self._addr(seller)
         if seller_addr == actor:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Cannot pay yourself")
 
-        self.payment_count = u256(int(self.payment_count) + 1)
-        payment_id = f"pay-{int(self.payment_count)}"
         now = self._now()
-
         self.payments[payment_id] = Payment(
             buyer=actor,
             seller=seller_addr,
@@ -281,7 +273,73 @@ class Undo402(gl.Contract):
         self.payment_sources[payment_id] = sources
         self.total_recorded_usdc = u256(int(self.total_recorded_usdc) + int(amount_usdc))
         self.payment_order.append(payment_id)
+        self.payment_count = u256(int(self.payment_count) + 1)
         return payment_id
+
+    def _prepare_payment(
+        self, actor_address: str, seller: str, rail: str, criteria: str, payment_proof: str, amount_usdc: u256, evidence_urls: str
+    ):
+        actor = self._resolve_actor(actor_address)
+        if int(amount_usdc) == 0:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Zero USDC amount")
+        sources = self._parse_sources(evidence_urls)
+        if rail not in ALLOWED_RAILS:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid rail: {rail}")
+        self._validate_payment_proof(rail, payment_proof)
+        if not criteria.strip():
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Empty criteria")
+        if len(criteria) > MAX_EVIDENCE_CHARS:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Criteria exceeds max length")
+        return actor, sources
+
+    @gl.public.write
+    def create_payment(
+        self,
+        actor_address: str,
+        seller: str,
+        rail: str,
+        criteria: str,
+        payment_proof: str,
+        amount_usdc: u256,
+        ttl_seconds: u256,
+        evidence_urls: str,
+    ) -> str:
+        actor, sources = self._prepare_payment(
+            actor_address, seller, rail, criteria, payment_proof, amount_usdc, evidence_urls
+        )
+        self.payment_count = u256(int(self.payment_count) + 1)
+        n = int(self.payment_count)
+        while f"pay-{n}" in self.payments:
+            n += 1
+        # _store_payment increments the count, so set it to n - 1 first.
+        self.payment_count = u256(n - 1)
+        return self._store_payment(
+            actor, f"pay-{n}", seller, rail, criteria, payment_proof, amount_usdc, ttl_seconds, sources
+        )
+
+    @gl.public.write
+    def create_payment_with_id(
+        self,
+        actor_address: str,
+        payment_id: str,
+        seller: str,
+        rail: str,
+        criteria: str,
+        payment_proof: str,
+        amount_usdc: u256,
+        ttl_seconds: u256,
+        evidence_urls: str,
+    ) -> str:
+        """Create a payment with a caller-chosen id so the Base escrow id and
+        the GenLayer case id are the same. This is what the settlement path
+        requires; the auto-id create_payment stays for compatibility."""
+        self._validate_payment_id(payment_id)
+        actor, sources = self._prepare_payment(
+            actor_address, seller, rail, criteria, payment_proof, amount_usdc, evidence_urls
+        )
+        return self._store_payment(
+            actor, payment_id, seller, rail, criteria, payment_proof, amount_usdc, ttl_seconds, sources
+        )
 
     @gl.public.write
     def submit_delivery(self, actor_address: str, payment_id: str, delivery_url: str, note: str) -> None:

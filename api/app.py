@@ -22,7 +22,8 @@ BASE = Path(__file__).resolve().parent.parent
 app = FastAPI(title="Undo402 Dispute API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7")
+CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0x9022290256C9b4B243fD4519b9857c83e45fFb5a")
+ESCROW_ADDRESS = os.environ.get("ESCROW", os.environ.get("ESCROW_CONTRACT", "0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24"))
 STUDIONET_RPC = "https://studio.genlayer.com/api"
 CHAIN_ID = 61999
 Rail = Literal["x402", "chain", "card"]
@@ -30,6 +31,7 @@ Rail = Literal["x402", "chain", "card"]
 
 class CreatePayment(BaseModel):
     actor_address: str
+    payment_id: str = ""  # must match the Base escrow id when provided
     seller: str
     rail: Rail
     criteria: str
@@ -82,7 +84,7 @@ def _call(fn: str, args: list):
         capture_output=True, text=True, timeout=300, env=env, cwd=str(BASE),
     )
     try:
-        out = json.loads(proc.stdout.strip().splitlines()[-1])
+        out = _parse_json_output(proc.stdout)
     except Exception:
         raise HTTPException(502, f"Relay failed: {proc.stdout[-500:]} {proc.stderr[-500:]}")
     if not out.get("ok"):
@@ -103,6 +105,8 @@ def health():
 @app.post("/payments", status_code=201)
 def create_payment(body: CreatePayment):
     _validate_proof(body.rail, body.payment_proof)
+    if body.payment_id:
+        return _call("create_payment_with_id", [body.actor_address, body.payment_id, body.seller, body.rail, body.criteria, body.payment_proof, body.amount_usdc, body.ttl_seconds, body.evidence_urls])
     return _call("create_payment", [body.actor_address, body.seller, body.rail, body.criteria, body.payment_proof, body.amount_usdc, body.ttl_seconds, body.evidence_urls])
 
 
@@ -146,12 +150,64 @@ def resolve(payment_id: str):
     return _call("resolve_dispute", [payment_id])
 
 
+def _parse_json_output(stdout: str):
+    """Parse JSON emitted by the Node bridges.
+
+    `api_call.mjs` prints exactly one line, while `settle.mjs --json` pretty
+    prints a multi-line document. Try the whole payload first, then the last
+    non-empty line for mixed/streamed output.
+    """
+    text = (stdout or "").strip()
+    if not text:
+        raise ValueError("empty stdout")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    for line in reversed(text.splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    raise ValueError("no JSON object found in stdout")
+
+
+@app.post("/payments/{payment_id}/settle")
+def settle(payment_id: str, check: bool = False):
+    """Idempotent GenLayer -> Base settlement (scripts/settle.mjs).
+
+    Verifies payment id, verdict, attestation binding and partial split, then
+    invokes the matching escrow exactly once. Safe to retry: if the escrow is
+    already terminal with the same attestation it returns without a tx.
+    """
+    env = {
+        **os.environ,
+        "UNDO402_CONTRACT_ADDRESS": CONTRACT_ADDRESS,
+        "ESCROW": ESCROW_ADDRESS,
+        "GENLAYER_RPC_URL": STUDIONET_RPC,
+    }
+    cmd = ["node", str(BASE / "scripts" / "settle.mjs"), "--payment", payment_id, "--json"]
+    if check:
+        cmd.append("--check")
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env, cwd=str(BASE))
+    try:
+        out = _parse_json_output(proc.stdout)
+    except Exception:
+        raise HTTPException(502, f"Settlement failed: {proc.stdout[-500:]} {proc.stderr[-500:]}")
+    if not out.get("ok"):
+        raise HTTPException(409, out)
+    return out
+
+
 @app.get("/payments/{payment_id}")
 def get_payment(payment_id: str):
     env = {**os.environ, "UNDO402_CONTRACT_ADDRESS": CONTRACT_ADDRESS, "GENLAYER_RPC_URL": STUDIONET_RPC}
     proc = subprocess.run(["node", str(BASE / "scripts" / "api_call.mjs"), "get_payment", json.dumps([payment_id])], capture_output=True, text=True, timeout=120, env=env, cwd=str(BASE))
     try:
-        out = json.loads(proc.stdout.strip().splitlines()[-1])
+        out = _parse_json_output(proc.stdout)
         return out
     except Exception:
         raise HTTPException(502, f"Read failed: {proc.stdout[-300:]} {proc.stderr[-300:]}")
@@ -162,6 +218,6 @@ def list_payments():
     env = {**os.environ, "UNDO402_CONTRACT_ADDRESS": CONTRACT_ADDRESS, "GENLAYER_RPC_URL": STUDIONET_RPC}
     proc = subprocess.run(["node", str(BASE / "scripts" / "api_call.mjs"), "get_payments", "[]"], capture_output=True, text=True, timeout=120, env=env, cwd=str(BASE))
     try:
-        return json.loads(proc.stdout.strip().splitlines()[-1])
+        return _parse_json_output(proc.stdout)
     except Exception:
         raise HTTPException(502, f"Read failed: {proc.stdout[-300:]} {proc.stderr[-300:]}")
