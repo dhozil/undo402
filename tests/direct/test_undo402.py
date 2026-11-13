@@ -47,7 +47,7 @@ def test_create_with_id_matches_base_escrow(direct_vm, direct_deploy, direct_ali
         "pay-steward-1",
         _addr(direct_bob),
         "x402",
-        "criteria",
+        "Delivery criteria long enough.",
         PROOF,
         ONE_USDC,
         86400,
@@ -59,17 +59,17 @@ def test_create_with_id_matches_base_escrow(direct_vm, direct_deploy, direct_ali
 
     with direct_vm.expect_revert("[EXPECTED] Payment id already exists"):
         contract.create_payment_with_id(
-            _addr(direct_alice), "pay-steward-1", _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, ""
+            _addr(direct_alice), "pay-steward-1", _addr(direct_bob), "x402", "Delivery criteria long enough.", PROOF, ONE_USDC, 86400, ""
         )
 
     with direct_vm.expect_revert("[EXPECTED] Invalid payment id"):
         contract.create_payment_with_id(
-            _addr(direct_alice), "bad id!", _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, ""
+            _addr(direct_alice), "bad id!", _addr(direct_bob), "x402", "Delivery criteria long enough.", PROOF, ONE_USDC, 86400, ""
         )
 
     # Legacy auto-id still works and does not collide with the custom id.
     auto_pid = contract.create_payment(
-        _addr(direct_alice), _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, ""
+        _addr(direct_alice), _addr(direct_bob), "x402", "Delivery criteria long enough.", PROOF, ONE_USDC, 86400, ""
     )
     assert auto_pid == "pay-2"
     assert contract.get_payment_count() == "2"
@@ -79,16 +79,16 @@ def test_create_rejects_zero_self_and_bad_proof(direct_vm, direct_deploy, direct
     contract = direct_deploy("contracts/Undo402.py")
     direct_vm.sender = direct_alice
     with direct_vm.expect_revert("[EXPECTED] Zero USDC amount"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", PROOF, 0, 86400, "")
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "Delivery criteria long enough.", PROOF, 0, 86400, "")
 
     with direct_vm.expect_revert("[EXPECTED] Cannot pay yourself"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", PROOF, ONE_USDC, 86400, "")
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "Delivery criteria long enough.", PROOF, ONE_USDC, 86400, "")
 
     with direct_vm.expect_revert("[EXPECTED] Invalid rail: cash"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "cash", "criteria", PROOF, ONE_USDC, 86400, "")
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "cash", "Delivery criteria long enough.", PROOF, ONE_USDC, 86400, "")
 
     with direct_vm.expect_revert("[EXPECTED] Invalid payment proof for rail x402: expected 0x tx hash"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "criteria", "0xproof123", ONE_USDC, 86400, "")
+        contract.create_payment(_addr(direct_alice), _addr(direct_alice), "x402", "Delivery criteria long enough.", "0xproof123", ONE_USDC, 86400, "")
 
 
 def test_relay_cannot_be_impersonated(direct_vm, direct_deploy, direct_alice, direct_bob, direct_charlie):
@@ -266,4 +266,11 @@ def test_sources_must_be_https(direct_vm, direct_deploy, direct_alice, direct_bo
     contract = direct_deploy("contracts/Undo402.py")
     direct_vm.sender = direct_alice
     with direct_vm.expect_revert("[EXPECTED] source url must start with https://: http://example.com/spec"):
-        contract.create_payment(_addr(direct_alice), _addr(direct_bob), "x402", "criteria", PROOF, ONE_USDC, 86400, "http://example.com/spec")
+        contract.create_payment(_addr(direct_alice), _addr(direct_bob), "x402", "Delivery criteria long enough.", PROOF, ONE_USDC, 86400, "http://example.com/spec")
+
+
+def test_criteria_too_short_rejected(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = direct_deploy("contracts/Undo402.py")
+    direct_vm.sender = direct_alice
+    with direct_vm.expect_revert("[EXPECTED] Criteria too short (min 10 chars)"):
+        contract.create_payment(_addr(direct_alice), _addr(direct_bob), "x402", "short", PROOF, ONE_USDC, 86400, "")

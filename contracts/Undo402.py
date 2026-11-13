@@ -288,6 +288,8 @@ class Undo402(gl.Contract):
         self._validate_payment_proof(rail, payment_proof)
         if not criteria.strip():
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Empty criteria")
+        if len(criteria.strip()) < 10:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Criteria too short (min 10 chars)")
         if len(criteria) > MAX_EVIDENCE_CHARS:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Criteria exceeds max length")
         return actor, sources
