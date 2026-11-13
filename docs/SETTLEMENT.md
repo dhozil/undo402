@@ -5,7 +5,7 @@ This is the repository path the steward asked to identify:
 | What | Where |
 |---|---|
 | **Idempotent settlement** | [`scripts/settle.mjs`](../scripts/settle.mjs) |
-| **On-chain binding check** | [`contracts/base/Undo402Escrow.sol`](../contracts/base/Undo402Escrow.sol) (`release`, `refund`, `releasePartial`) |
+| **On-chain binding + finalization proof** | [`contracts/base/Undo402Escrow.sol`](../contracts/base/Undo402Escrow.sol) (`release`, `refund`, `releasePartial`) |
 | **In-app settlement** | Dashboard buttons in [`frontend/actions.js`](../frontend/actions.js) — same checks, signed by the connected wallet |
 | **Tests** | [`tests/base/Undo402Escrow.t.sol`](../tests/base/Undo402Escrow.t.sol) (`forge test`) |
 
@@ -35,18 +35,35 @@ hold:
 5. **Escrow binding** — the Base escrow's `paymentId`, `buyer`, `seller`, and
    `amount` must equal the GenLayer case. A digest for another case, another
    party, or another verdict is rejected.
-6. **Base supports the same check on-chain** — the escrow recomputes the same
+6. **Base enforces the same check on-chain** — the escrow recomputes the same
    SHA-256 digest (including EIP-55 checksums) from its stored buyer/seller.
    It reverts with `Empty attestation`, `Attestation must be 64 hex chars`,
    `Invalid hex in attestation`, or `Attestation not bound to case`.
+7. **Proof that GenLayer finalized the outcome (v6)** — settlement additionally
+   requires an ECDSA signature (`proof`) from the escrow's configured
+   `attestor` over the settlement intent:
+
+   ```
+   keccak256(abi.encode(
+     chainId, escrowAddress,
+     keccak256(paymentId), keccak256(decision),
+     score, refundPercent, buyer, seller, attestationDigest
+   ))
+   ```
+
+   verified on-chain as an Ethereum signed message. The attestor must only sign
+   after verifying the case is finalized on GenLayer (which `scripts/settle.mjs`
+   does). This prevents a buyer or seller from computing the public hash for a
+   chosen verdict and settling without proof of GenLayer finalization.
 
 ## Who can settle
 
-The buyer, the seller, the relay, or the owner. In the app, the buyer and
-seller use **their own connected wallet** — the browser re-verifies the digest
-and then asks MetaMask to sign. No backend key is involved. Because the
-attestation pins the verdict, score, split and both parties, the caller can
-only execute the outcome GenLayer already produced.
+Settlement can be **submitted** from an authorized wallet (buyer, seller,
+relay, owner, or attestor) **together with a valid attestor finalization
+proof**. The proof is the on-chain evidence that GenLayer finalized the
+outcome; the `FUNDED → terminal` transition makes settlement exactly-once. In
+practice, `scripts/settle.mjs` verifies finality, signs the proof with the
+attestor key, and submits the transaction.
 
 ## Matching IDs (required)
 
@@ -63,9 +80,9 @@ The escrow's `FUNDED → terminal` status transition is the durable lock:
 
 - already terminal **with the same attestation** → exit 0, **no transaction**
 - already terminal **with a different attestation** → exit 1 (conflict)
-- still `FUNDED` → send the one matching settlement transaction
-- a lost race (two wallets settling) re-reads the escrow and treats the
-  on-chain result as authoritative instead of paying twice
+- still `FUNDED` → send the one matching settlement transaction (with valid attestor proof)
+- a lost race re-reads the escrow and treats the on-chain result as
+  authoritative instead of paying twice
 
 Settlement cannot be replayed because the second call reverts with
 `Not funded`.
@@ -74,10 +91,10 @@ Settlement cannot be replayed because the second call reverts with
 
 ```bash
 # verify only — no Base transaction
-node scripts/settle.mjs --payment pay-v5-demo --check
+node scripts/settle.mjs --payment <id> --check
 
-# settle with whoever's key you pass (buyer, seller, relay or owner)
-WALLET_DIR=/path/to/wallet node scripts/settle.mjs --payment pay-v5-demo
+# settle (signer must be the escrow attestor; script verifies finality then signs proof)
+WALLET_DIR=/path/to/wallet node scripts/settle.mjs --payment <id>
 
 # settle every finalized case that has a matching escrow
 node scripts/settle.mjs --all --json
@@ -87,32 +104,37 @@ Environment:
 
 ```
 UNDO402_CONTRACT_ADDRESS   0x9022290256C9b4B243fD4519b9857c83e45fFb5a
-ESCROW                     0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F
+ESCROW                     0x85bC06C938532EF89388A401637bE1B8F7ac9037
 GENLAYER_RPC_URL           https://studio.genlayer.com/api
 BASE_RPC_URL               https://sepolia.base.org
-WALLET_DIR                 folder containing seller.json (demo payer)
+WALLET_DIR                 folder containing seller.json (demo payer/attestor)
 ```
 
-## Live proof (Base Sepolia, v5 escrow)
+## Live proof
 
-**Buyer-signed settlement (the app path):**
+### v6 — finalization-proof binding (steward rejection fix)
 
-- Base escrow `pay-v5-demo` (0.1 USDC) —
-  [`0xc37cd80aad4350a597b444a60995999a19c5cfdba885035cd20c154db24904b6`](https://sepolia.basescan.org/tx/0xc37cd80aad4350a597b444a60995999a19c5cfdba885035cd20c154db24904b6)
-- `create_payment_with_id("pay-v5-demo")` → delivery → dispute →
-  `human_resolve(refund)` → attestation
-  `9b2c4d78fdb0c82ceb5e2061547b07c3ffbbdfadbe9c0b22425cb718501bb854`
-- `settle.mjs` run with the **buyer** key (not the relay) refunded the escrow:
-  [`0x5c66f8194274a783bc845e6f6790049b4a2df26c88ae08313e7573166de0b831`](https://sepolia.basescan.org/tx/0x5c66f8194274a783bc845e6f6790049b4a2df26c88ae08313e7573166de0b831)
-- Second run returned `alreadySettled: true`, `sent: false` — no second USDC
-  movement.
+- Escrow: `0x85bC06C938532EF89388A401637bE1B8F7ac9037` (Base Sepolia), attestor
+  `0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3`.
+- Settlement functions require `(attestation, proof)`; `proof` is verified
+  on-chain against the attestor and the bound settlement hash.
+- **Security fix (tested on-chain):** a party that computes the public SHA-256
+  digest for a chosen verdict **cannot** settle without attestor proof of
+  GenLayer finalization (`Invalid settlement proof` / invalid signature). Valid
+  attestor-signed proof for a bound, finalized case settles exactly once.
+- Foundry: **16/16** tests (digest reproduction, binding, empty/arbitrary/
+  cross-case/cross-party/wrong-verdict/wrong-score rejection, partial-split
+  binding, **self-computed digest without finalization proof rejected**,
+  non-attestor signature rejected, exactly-once, authorized settlement with
+  valid proof, buyer timeout backstop).
 
-**Earlier proofs:** `pay-v9-demo` (0.1 USDC, relay-signed) settled at
-[`0xc66dc4e77ae64f8b6ff875921ea1139c98e2ac0f8e3cbee65620452d6fea46a6`](https://sepolia.basescan.org/tx/0xc66dc4e77ae64f8b6ff875921ea1139c98e2ac0f8e3cbee65620452d6fea46a6);
-`pay-1` (1 USDC) settled at
-[`0x22ef5b045a835974936f64cfc2017f83d2262fe9b468562366f94983a361697f`](https://sepolia.basescan.org/tx/0x22ef5b045a835974936f64cfc2017f83d2262fe9b468562366f94983a361697f).
-A `FUNDED` case was refused with `NOT_FINAL`; a made-up 64-hex attestation on
-Base reverted with `Attestation not bound to case`.
+### Earlier proofs (v5/v4 history)
+
+- **v5 buyer-signed `pay-v5-demo`:** Base escrow `0xc37c…04b6`, GenLayer refund
+  attestation `9b2c4d78…`, settled by buyer tx `0x5c66…b831`, rerun
+  `alreadySettled: true` with no tx (on escrow `0xB037…f70F`, pre-proof-fix).
+- **v4 `pay-1`:** refund settled tx `0x22ef…697f`, rerun idempotent; `NOT_FINAL`
+  and arbitrary-attestation cases rejected.
 
 ## Test coverage
 
@@ -120,8 +142,9 @@ Base reverted with `Attestation not bound to case`.
 forge test -vv
 ```
 
-14 tests cover: live digest reproduction, lowercase/checksum canonicalization,
+16 tests cover: live digest reproduction, lowercase/checksum canonicalization,
 empty/arbitrary/cross-case/cross-party/wrong-verdict/wrong-score rejection,
-partial-split binding, exactly-once settlement, buyer-signed refund,
-seller-signed release, outsider rejection, and the independent buyer timeout
-backstop.
+**self-computed digest without GenLayer-finalization proof rejected**,
+non-attestor signature rejected, partial-split binding, exactly-once settlement,
+authorized settlement with valid attestor proof, and the independent buyer
+timeout backstop.

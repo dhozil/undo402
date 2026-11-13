@@ -154,7 +154,7 @@ async function showPayment(id) {
         AI confidence: ${esc(p.verdict_score)}/100 · Refund share: ${esc(p.refund_percent)}%<br>
         ${p.human_verdict ? "Human override: <strong>" + esc(p.human_verdict) + "</strong> — " + esc(p.human_reason) + "<br>" : ""}
         <a href="https://explorer-studio.genlayer.com/address/${CONTRACT}" target="_blank" rel="noreferrer">View contract ↗</a>
-        · <a href="https://sepolia.basescan.org/address/0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F" target="_blank" rel="noreferrer">Base escrow ↗</a>
+        · <a href="https://sepolia.basescan.org/address/0x85bC06C938532EF89388A401637bE1B8F7ac9037" target="_blank" rel="noreferrer">Base escrow ↗</a>
       </div>`;
   } catch (e) {
     toast(`<strong>Read failed:</strong> ${esc(e.message)}`, "error");

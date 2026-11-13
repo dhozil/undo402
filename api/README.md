@@ -41,6 +41,6 @@ GET  /health                           Liveness
 ```bash
 pip install fastapi uvicorn pydantic
 UNDO402_CONTRACT_ADDRESS=0x9022290256C9b4B243fD4519b9857c83e45fFb5a \
-ESCROW=0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F \
+ESCROW=0x85bC06C938532EF89388A401637bE1B8F7ac9037 \
 uvicorn api.app:app --port 8000
 ```

@@ -8,7 +8,7 @@
 [![Base Sepolia](https://img.shields.io/badge/Base-Sepolia-USDC-0a7d5c)](https://sepolia.basescan.org)
 [![Tests](https://img.shields.io/badge/tests-33_passing-0a7d5c)](tests/)
 [![Contract](https://img.shields.io/badge/Undo402-0x9022…Fb5a-7c5cff)](https://explorer-studio.genlayer.com/address/0x9022290256C9b4B243fD4519b9857c83e45fFb5a)
-[![Escrow](https://img.shields.io/badge/Escrow-0xB037…f70F-e4572e)](https://sepolia.basescan.org/address/0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F)
+[![Escrow](https://img.shields.io/badge/Escrow-0x85bC…9037-e4572e)](https://sepolia.basescan.org/address/0x85bC06C938532EF89388A401637bE1B8F7ac9037)
 
 **Agentic Commerce Infrastructure** — real USDC escrows on Base, decentralized AI-validator adjudication on GenLayer.
 
@@ -23,7 +23,7 @@
 | Layer | Network | Address |
 |---|---|---|
 | **Undo402** (adjudication) | StudioNet 61999 | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
-| **Undo402Escrow** (USDC) | Base Sepolia 84532 | `0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F` |
+| **Undo402Escrow** (USDC) | Base Sepolia 84532 | `0x85bC06C938532EF89388A401637bE1B8F7ac9037` |
 | **USDC** (testnet) | Base Sepolia | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
 ✅ **Proven live:** refund · release · partial — all three verdicts settled in real USDC on Base.
@@ -66,7 +66,7 @@ Connected wallet settles ──▶ release / refund / partial
 1. **Pay** — buyer locks USDC in `Undo402Escrow` (Base Sepolia)
 2. **Deliver** — seller submits a URL; buyer accepts, mutual-agrees (2-of-2), or disputes
 3. **Adjudicate** — GenLayer validators independently judge delivery vs criteria (exact decision consensus, score ±10)
-4. **Settle** — the app re-checks the attestation, then the buyer or seller settles from their own wallet; the attestation is stored on-chain as cross-chain proof
+4. **Settle** — the app re-checks the finalized verdict and attestation binding, then settlement is executed with an **attestor finalization proof** (ECDSA signature produced after verifying GenLayer finality) so a party cannot self-attest a chosen verdict by computing the public hash alone; the attestation/proof are recorded as cross-chain proof and settlement is exactly-once
 
 **Anti-stuck by design:** buyer timeout claim on Base · evidence deadline + default judgment · prompt-injection defense (STEP 0) · human override layer · `undetermined` = free retry, never silent failure.
 
@@ -95,7 +95,7 @@ Connected wallet settles ──▶ release / refund / partial
 | **Undo402** | `contracts/Undo402.py` | Adjudication + factory registry (single contract, 27 methods) |
 | **Undo402Escrow** | `contracts/base/Undo402Escrow.sol` | Real USDC escrow on Base |
 | **Frontend** | `frontend/` | Landing · How · Integrations · Dashboard · Contracts |
-| **Tests** | `tests/direct/` + `tests/base/` | 19 direct + 14 Foundry (binding, exactly-once) |
+| **Tests** | `tests/direct/` + `tests/base/` | 19 direct + 16 Foundry (binding, finalization proof, exactly-once) |
 
 ---
 
@@ -118,19 +118,20 @@ get_payment / get_payments / get_case_count        # views
 ### Undo402Escrow (Base)
 
 ```solidity
-createEscrow(paymentId, seller, amount, ttlSeconds)          // buyer locks USDC
-release(paymentId, score, attestation)                       // → seller
-refund(paymentId, score, attestation)                        // → buyer
-releasePartial(paymentId, sellerPercent, score, attestation) // → split
-claimTimeout(paymentId)                                      // buyer, after deadline (anti-stuck)
+createEscrow(paymentId, seller, amount, ttlSeconds)                          // buyer locks USDC
+release(paymentId, score, attestation, proof)                                // → seller
+refund(paymentId, score, attestation, proof)                                 // → buyer
+releasePartial(paymentId, sellerPercent, score, attestation, proof)          // → split
+claimTimeout(paymentId)                                                      // buyer, after deadline (anti-stuck)
 ```
 
-Every settlement call must present the SHA-256 attestation GenLayer produced
-for that exact case. The escrow recomputes it on-chain (payment id, verdict,
-score, refund split, buyer, seller), so empty or arbitrary attestations revert
-and each case settles at most once. In the app, the buyer or seller signs the
-settlement with their own connected wallet. See
-[`docs/SETTLEMENT.md`](docs/SETTLEMENT.md).
+Every settlement call must present (1) the SHA-256 attestation GenLayer produced
+for that exact case — the escrow recomputes it on-chain (payment id, verdict,
+score, refund split, buyer, seller), so empty or arbitrary/unbound attestations
+revert — and (2) an **attestor signature** (`proof`) certifying that the case was
+finalized on GenLayer. This prevents a buyer/seller from settling a chosen
+verdict by computing the public hash alone. Settlement is exactly-once
+(`FUNDED → terminal`). See [`docs/SETTLEMENT.md`](docs/SETTLEMENT.md).
 
 ---
 
@@ -146,7 +147,7 @@ genlayer write <UNDO402> register_type --args "undo402-case"
 # Base Sepolia (needs ETH + test USDC from faucets)
 forge create --broadcast --rpc-url https://sepolia.base.org \
   --private-key $PK contracts/base/Undo402Escrow.sol:Undo402Escrow \
-  --constructor-args <USDC_ADDRESS>
+  --constructor-args <USDC_ADDRESS> <ATTESTOR_ADDRESS>
 
 # Frontend → Vercel (see VERCEL.md)
 vercel --prod   # Root Directory: frontend
@@ -174,7 +175,7 @@ DEPLOYMENT.md · VERCEL.md
 ```bash
 genvm-lint check contracts/Undo402.py   # lint + validate
 pytest tests/direct/ -v                  # direct tests
-forge test -vv                           # escrow binding + exactly-once (14 tests)
+forge test -vv                           # escrow binding + finalization proof + exactly-once (16 tests)
 WALLET_DIR=/path/to/wallet node scripts/settle.mjs --payment pay-1 --check
 ```
 

@@ -107,7 +107,7 @@
     <p class="lede">Undo402 is the missing dispute layer in the agentic commerce stack. Each integration below is live or ready — click any card for details.</p>
     <div class="grid-3">
       <article class="card int-card"><span class="int-icon">◈</span><h3>x402 Protocol</h3><p>Coinbase HTTP 402 stablecoin payments. Buyer pays USDC via facilitator; payment_proof recorded on GenLayer.</p><span class="pill pill-release">live · Base Sepolia</span></article>
-      <article class="card int-card"><span class="int-icon">⬡</span><h3>Base USDC Escrow</h3><p>Solidity escrow holds real USDC. Release / refund / partial executed from GenLayer verdict + attestation.</p><span class="pill pill-release">live · 0x8fcD…8c24</span></article>
+      <article class="card int-card"><span class="int-icon">⬡</span><h3>Base USDC Escrow</h3><p>Solidity escrow holds real USDC. Release / refund / partial executed from a finalized GenLayer verdict, bound attestation, and attestor finalization proof.</p><span class="pill pill-release">live · 0x85bC…9037</span></article>
       <article class="card int-card"><span class="int-icon">⬢</span><h3>GenLayer StudioNet</h3><p>Intelligent Contract adjudication. 5 validators, Optimistic Democracy, exact decision consensus.</p><span class="pill pill-release">live · 61999</span></article>
       <article class="card int-card"><span class="int-icon">⬣</span><h3>Card Rail</h3><p>Stripe-style PaymentIntent references accepted as payment_proof. Same dispute API, fiat settlement off-chain.</p><span class="pill pill-partial">ready · pi_… refs</span></article>
       <article class="card int-card"><span class="int-icon">⬔</span><h3>ERC-8004 Identity</h3><p>Agent identity + reputation hooks. Verdict history feeds on-chain reputation scores.</p><span class="pill pill-undetermined">planned</span></article>
@@ -153,8 +153,8 @@
         <button class="btn" id="btnPartial">◐ Settle partial</button>
         <button class="btn btn-ghost" id="btnTimeout">⏱ Claim timeout</button>
       </div>
-      <p class="muted">Refund / release / partial settle only after a finalized GenLayer verdict. The button re-verifies payment ID, verdict, attestation digest, and refund split, then your connected wallet signs. Only the buyer or seller of that payment can settle. Claim timeout = buyer withdraws directly after the deadline, with no backend needed.</p>
-      <div id="escrowOut" class="muted">Escrow: <code>0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F</code></div>
+      <p class="muted">Refund / release / partial settle only after a finalized GenLayer verdict. The app re-verifies payment ID, verdict, attestation digest, and refund split, then requires an <strong>attestor finalization proof</strong> before signing. Connect the attestor wallet to settle from the browser, or run <code>node scripts/settle.mjs --payment &lt;id&gt;</code>. Claim timeout = buyer withdraws directly after the deadline, with no backend needed.</p>
+      <div id="escrowOut" class="muted">Escrow: <code>0x85bC06C938532EF89388A401637bE1B8F7ac9037</code></div>
     </div>
 
     <div class="grid-2">
@@ -218,9 +218,9 @@
     </div>
     <div class="card">
       <h3>Base Sepolia (USDC escrow)</h3>
-      <p>Undo402Escrow v5 — holds real USDC, release/refund/partial with on-chain attestation binding + buyer timeout claim.</p>
-      <p><code>0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F</code></p>
-      <a href="https://sepolia.basescan.org/address/0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F" target="_blank" rel="noreferrer">View on BaseScan ↗</a>
+      <p>Undo402Escrow v6 — holds real USDC, release/refund/partial with on-chain attestation binding + attestor proof of GenLayer finalization + buyer timeout claim.</p>
+      <p><code>0x85bC06C938532EF89388A401637bE1B8F7ac9037</code></p>
+      <a href="https://sepolia.basescan.org/address/0x85bC06C938532EF89388A401637bE1B8F7ac9037" target="_blank" rel="noreferrer">View on BaseScan ↗</a>
     </div>
     <div class="card">
       <h3>USDC (testnet)</h3>

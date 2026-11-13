@@ -24,20 +24,25 @@
 
 | Contract | Address | Tx |
 |---|---|---|
-| Undo402Escrow v5 (buyer/seller can settle) ⭐ | `0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F` | `0xfab1e39b76684e5f728044c6c0bd2cd72e95a45aecf1ac7c1ed016df65e667aa` |
+| **Undo402Escrow v6 (attestation binding + GenLayer finalization proof)** ⭐ | `0x85bC06C938532EF89388A401637bE1B8F7ac9037` | `0x86de302cb8d06c7089ab66b49326d7521663290cecfce9906eb0b03b513474ea` |
+| Undo402Escrow v5 (party-settle, pre-proof-fix) | `0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F` | `0xfab1e39b76684e5f728044c6c0bd2cd72e95a45aecf1ac7c1ed016df65e667aa` |
 | Undo402Escrow v4 (on-chain attestation binding) | `0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24` | `0xd805c48e7924d03fb656a78512cd9b81ab4fe0ee2102b268ca7c81a7af0a529f` |
 | Undo402Escrow v3 (timeout claim) | `0x2aa335805722FfeEa8b8eE96B9e8bb2a4B20Fde8` | `0xb7309282bb3fb10804bca75303fbb95fa3e567b822c8d6c2f58bb35cce057279` |
 | Undo402Escrow v2 (release + refund + partial) | `0xC4ac27c83790a07a1dC8A3c1c2E9564Fb94D4dEa` | `0x1bf38dd6fd336d0bea14172ccc9cd006f43df1091db5b911f24c84d1ba0647eb` |
 | Undo402Escrow v1 | `0x5333Eec70a74e6d01b0Cc3eF4428A612E9751346` | `0x26bf1f46a66bd8535140e7aa1ec93b595c51deba57c781e83da0f726f3793747` |
 | USDC (testnet) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | — |
 
-**v5 idempotent settlement proof (buyer wallet, real USDC):**
+**v6 finalization-proof fix (steward rejection resolved):**
+- Deployed with `attestor = 0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3`. Settlement requires (1) bound SHA-256 attestation recomputed on-chain and (2) **attestor ECDSA signature** over `(chainId, escrow, paymentId, decision, score, refundPercent, buyer, seller, attestationDigest)` certifying GenLayer finalization.
+- **Rejection case fixed (on-chain):** for funded escrow `pay-v6-noproof`, an authorized buyer calling `refund` with the correct self-computed bound digest `c01fe38c…` but an invalid proof **reverted** at signature verification (ECDSA invalid signature) — a party cannot settle a chosen verdict by computing the public hash alone. ✅
+- **Live finalized settlement (attestor proof):** escrow `pay-v6-proof` (0.1 USDC) funded [`0x306df11faa237f1da417f7199ac1b3b1fb029eeb3b748d9b838dc3b64543a2e4`](https://sepolia.basescan.org/tx/0x306df11faa237f1da417f7199ac1b3b1fb029eeb3b748d9b838dc3b64543a2e4) → GenLayer `create_payment_with_id`/delivery/dispute/`human_resolve(refund)` (attestation `84566d2f21221a6c79600bdc6208e29437140258ad5922fe54e46d22fff61fcf`) → `settle.mjs --check` verified binding → settled with attestor finalization proof [`0x39ec45a3e91ab0f80115474dd86188c493f32bd8d31c061ee86ed4aacf1f167a`](https://sepolia.basescan.org/tx/0x39ec45a3e91ab0f80115474dd86188c493f32bd8d31c061ee86ed4aacf1f167a) ✅ → rerun `alreadySettled: true`, `sent: false` (exactly-once). ✅
+- `forge test`: **16/16** (empty/arbitrary/cross-case/cross-party/wrong-verdict/wrong-score/partial-split, **self-computed digest without finalization proof rejected**, non-attestor signature rejected, exactly-once, authorized settlement with valid proof, buyer timeout).
+
+**v5 idempotent settlement proof (buyer wallet, real USDC, pre-proof-fix):**
 - Escrow `pay-v5-demo` (0.1 USDC): [`0xc37cd80aad4350a597b444a60995999a19c5cfdba885035cd20c154db24904b6`](https://sepolia.basescan.org/tx/0xc37cd80aad4350a597b444a60995999a19c5cfdba885035cd20c154db24904b6)
 - Finalized on StudioNet: verdict `refund`, attestation `9b2c4d78fdb0c82ceb5e2061547b07c3ffbbdfadbe9c0b22425cb718501bb854`
-- `settle.mjs` signed by the **buyer** (not the relay) refunded the escrow: [`0x5c66f8194274a783bc845e6f6790049b4a2df26c88ae08313e7573166de0b831`](https://sepolia.basescan.org/tx/0x5c66f8194274a783bc845e6f6790049b4a2df26c88ae08313e7573166de0b831) ✅
+- `settle.mjs` (v5) signed by the **buyer** refunded the escrow: [`0x5c66f8194274a783bc845e6f6790049b4a2df26c88ae08313e7573166de0b831`](https://sepolia.basescan.org/tx/0x5c66f8194274a783bc845e6f6790049b4a2df26c88ae08313e7573166de0b831) ✅
 - Second run: `alreadySettled: true`, `sent: false` — no second USDC movement ✅
-- `pay-2` (GenLayer state `FUNDED`) refused with `NOT_FINAL`; made-up 64-hex attestation on Base reverted with **`Attestation not bound to case`** ✅
-- `forge test`: 14/14 (empty/arbitrary/cross-case/cross-party/wrong-verdict/wrong-score/partial-split/exactly-once/buyer-signed/seller-signed/outsider/timeout)
 - See [`docs/SETTLEMENT.md`](docs/SETTLEMENT.md) for the identified path.
 
 **v4 idempotent settlement proof (`pay-1`, real USDC):**
@@ -52,7 +57,7 @@
 - `pay-3`: human override **partial 50%** → Base `releasePartial` (`0xb679…`) → buyer +1, seller +1 ✅
 - `pay-2`: AI verdict refund (jsonplaceholder judged failing) — relay now gates on verdict match
 
-Run: `UNDO402_CONTRACT_ADDRESS=0x9022… ESCROW=0xB037… node scripts/settle.mjs --payment <id>` (idempotent) or the historical `scripts/e2e_release_partial.mjs` / `scripts/e2e_release2.mjs`.
+Run: `UNDO402_CONTRACT_ADDRESS=0x9022… ESCROW=0x85bC… node scripts/settle.mjs --payment <id>` (idempotent; signer must be attestor to produce finalization proof) or historical release scripts.
 
 ## Wallets (external, never committed)
 

@@ -132,7 +132,7 @@
   bind("btnRefresh", function () { if (window.loadPayments) window.loadPayments(); else toast("Dashboard data module not loaded yet.", "error"); });
 
   // Base escrow actions (viem + MetaMask on Base Sepolia)
-  var ESCROW = (window.UNDO402 && window.UNDO402.ESCROW_CONTRACT) || "0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F";
+  var ESCROW = (window.UNDO402 && window.UNDO402.ESCROW_CONTRACT) || "0x85bC06C938532EF89388A401637bE1B8F7ac9037";
   var USDC = (window.UNDO402 && window.UNDO402.USDC) || "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
   async function baseClient() {
     if (!window.ethereum) throw new Error("Connect MetaMask first.");
@@ -158,9 +158,9 @@
       const escrowAbi = {
         approve: [{ type: "function", name: "approve", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" }],
         createEscrow: [{ type: "function", name: "createEscrow", inputs: [{ type: "string" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }], outputs: [], stateMutability: "nonpayable" }],
-        refund: [{ type: "function", name: "refund", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
-        release: [{ type: "function", name: "release", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
-        releasePartial: [{ type: "function", name: "releasePartial", inputs: [{ type: "string" }, { type: "uint256" }, { type: "uint256" }, { type: "string" }], outputs: [], stateMutability: "nonpayable" }],
+        refund: [{ type: "function", name: "refund", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }, { type: "bytes" }], outputs: [], stateMutability: "nonpayable" }],
+        release: [{ type: "function", name: "release", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }, { type: "bytes" }], outputs: [], stateMutability: "nonpayable" }],
+        releasePartial: [{ type: "function", name: "releasePartial", inputs: [{ type: "string" }, { type: "uint256" }, { type: "uint256" }, { type: "string" }, { type: "bytes" }], outputs: [], stateMutability: "nonpayable" }],
         claimTimeout: [{ type: "function", name: "claimTimeout", inputs: [{ type: "string" }], outputs: [], stateMutability: "nonpayable" }],
       };
       const addr = fn === "approve" ? USDC : ESCROW;
@@ -173,7 +173,7 @@
     }
   }
   // Verify the finalized GenLayer case before touching Base. This mirrors
-  // scripts/settle.mjs and the on-chain check in Undo402Escrow v5.
+  // scripts/settle.mjs and the on-chain checks in Undo402Escrow v6.
   async function genPayment(pid) {
     const { createClient } = await import("genlayer-js");
     const { studionet } = await import("genlayer-js/chains");
@@ -197,7 +197,8 @@
       if (!/^[0-9a-fA-F]{64}$/.test(String(p.attestation_digest || ""))) {
         throw new Error("Case " + pid + " has an empty/invalid attestation — refusing to settle.");
       }
-      const { getAddress } = await import("viem");
+      const viem = await import("viem");
+      const { getAddress, keccak256, encodeAbiParameters } = viem;
       const refundPercent = expected === "refund" ? 100n : expected === "release" ? 0n : BigInt(p.refund_percent);
       if (expected === "partial" && (refundPercent < 1n || refundPercent > 99n)) {
         throw new Error("Partial refund_percent must be 1..99, got " + refundPercent);
@@ -207,14 +208,39 @@
       if (digest !== String(p.attestation_digest).toLowerCase()) {
         throw new Error("Attestation is not bound to " + pid + " (verdict/score/split/parties mismatch).");
       }
-      const me = window.__walletAddr ? String(window.__walletAddr).toLowerCase() : "";
-      if (me && me !== String(p.buyer).toLowerCase() && me !== String(p.seller).toLowerCase()) {
-        throw new Error("Connect the buyer or seller wallet for " + pid + " — settlement is signed by your own wallet.");
+      const { pub, wallet } = await baseClient();
+      const attestor = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "attestor", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" }], functionName: "attestor" });
+      const me = String(wallet.account.address).toLowerCase();
+      if (me !== String(attestor).toLowerCase()) {
+        throw new Error("Settlement requires an attestor signature proving GenLayer finalized this case. Connect the attestor wallet (" + attestor + ") to settle from the browser, or run: node scripts/settle.mjs --payment " + pid);
       }
+      // Build the same settlement hash as the escrow and sign it as proof of finalization.
+      const settlementHash = keccak256(encodeAbiParameters(
+        [
+          { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "bytes32" },
+          { type: "uint256" }, { type: "uint256" }, { type: "address" }, { type: "address" }, { type: "bytes32" },
+        ],
+        [
+          BigInt(84532), getAddress(ESCROW), keccak256(new TextEncoder().encode(p.id)), keccak256(new TextEncoder().encode(expected)),
+          BigInt(p.verdict_score), refundPercent, getAddress(p.buyer), getAddress(p.seller), ("0x" + digest),
+        ]
+      ));
+      toast("<strong>Sign finalization proof</strong> in MetaMask (Base Sepolia)");
+      const proof = await wallet.signMessage({ account: wallet.account, message: { raw: settlementHash } });
       const args = expected === "partial"
-        ? [pid, 100n - refundPercent, BigInt(p.verdict_score), digest]
-        : [pid, BigInt(p.verdict_score), digest];
-      await baseWrite(expected === "partial" ? "releasePartial" : expected, args, "Settle " + expected);
+        ? [pid, 100n - refundPercent, BigInt(p.verdict_score), digest, proof]
+        : [pid, BigInt(p.verdict_score), digest, proof];
+      // write directly (we already have clients)
+      const escrowAbi = {
+        refund: [{ type: "function", name: "refund", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }, { type: "bytes" }], outputs: [], stateMutability: "nonpayable" }],
+        release: [{ type: "function", name: "release", inputs: [{ type: "string" }, { type: "uint256" }, { type: "string" }, { type: "bytes" }], outputs: [], stateMutability: "nonpayable" }],
+        releasePartial: [{ type: "function", name: "releasePartial", inputs: [{ type: "string" }, { type: "uint256" }, { type: "uint256" }, { type: "string" }, { type: "bytes" }], outputs: [], stateMutability: "nonpayable" }],
+      };
+      const fn = expected === "partial" ? "releasePartial" : expected;
+      toast("<strong>Settle " + esc(expected) + "…</strong> check MetaMask (Base Sepolia)");
+      const h = await wallet.writeContract({ address: ESCROW, abi: escrowAbi[fn], functionName: fn, args });
+      await pub.waitForTransactionReceipt({ hash: h });
+      toast("<strong>Settle " + esc(expected) + " success.</strong><br><a href=\"https://sepolia.basescan.org/tx/" + h + "\" target=\"_blank\" rel=\"noreferrer\">tx " + h.slice(0, 10) + "… ↗</a>", "success");
     } catch (e) {
       toast("<strong>Settlement blocked:</strong> " + esc(e.message), "error");
     }

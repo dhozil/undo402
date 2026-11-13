@@ -6,28 +6,14 @@
 //    escrow settlement exactly once; the Base path must reject arbitrary or
 //    empty attestations that are not bound to that case."
 //
-// How this file satisfies it:
-//   1. Reads the case with Undo402.get_payment(payment_id) on StudioNet.
-//   2. Requires a terminal state (RELEASED / REFUNDED / PARTIAL) and that the
-//      verdict matches the state. Disputed / funded / undetermined cases never
-//      settle.
-//   3. Recomputes the attestation digest locally, byte-for-byte identical to
-//      Undo402._attest():
-//         sha256("undo402:{id}|{decision}|{score}|{refundPercent}|{buyer}|{seller}")
-//      with EIP-55 checksummed addresses, and requires it to equal the
-//      on-chain attestation_digest. Empty or malformed digests are rejected
-//      before any Base call.
-//   4. Binds the Base escrow: paymentId, buyer, seller and amount must match
-//      the GenLayer case. For partial verdicts, sellerPercent is derived from
-//      refund_percent (100 - refund) and must be 1..99.
-//   5. Idempotency key = (Base chain, escrow contract, paymentId).
-//      The escrow's FUNDED -> terminal status transition is the durable lock:
-//        - already terminal + same attestation  -> exit 0, no tx (already settled)
-//        - already terminal + different digest  -> exit 1 (conflicting settlement)
-//        - FUNDED + valid attestation           -> send exactly one tx
-//      A lost race (e.g. two wallets settling the same case) re-reads the
-//      escrow and treats the on-chain outcome as authoritative instead of
-//      double-spending.
+// v6 addition (steward rejection fix): Base settlement requires an attestor
+// ECDSA signature proving the case was finalized on GenLayer. The SHA-256
+// attestation digest binds the case parameters, and the attestor signature
+// proves that binding corresponds to a GenLayer-finalized outcome (a party
+// cannot self-attest a chosen verdict by computing the public hash alone).
+// The transaction may still be submitted from the attestor/authorized wallet;
+// the signature is the on-chain proof of finalization and the FUNDED ->
+// terminal status transition is the exactly-once lock.
 //
 // Usage:
 //   node scripts/settle.mjs --payment pay-1
@@ -40,10 +26,18 @@
 //   GENLAYER_RPC_URL          default https://studio.genlayer.com/api
 //   BASE_RPC_URL              default https://sepolia.base.org
 //   WALLET_DIR                folder with seller.json (demo payer)
-//   GENLAYER_PRIVATE_KEY      alternative to WALLET_DIR
+//   GENLAYER_PRIVATE_KEY      alternative to WALLET_DIR (must be attestor to settle)
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { getAddress, createPublicClient, createWalletClient, http, parseAbi } from "viem";
+import {
+  getAddress,
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseAbi,
+  keccak256,
+  encodeAbiParameters,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia, base } from "viem/chains";
 import { getClient, getPayment, getPayments } from "../api/relay.mjs";
@@ -52,7 +46,7 @@ import { sellerWallet } from "./wallet.mjs";
 const GENLAYER_CONTRACT =
   process.env.UNDO402_CONTRACT_ADDRESS || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
 const ESCROW =
-  process.env.ESCROW || process.env.ESCROW_CONTRACT || "0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F";
+  process.env.ESCROW || process.env.ESCROW_CONTRACT || "0x85bC06C938532EF89388A401637bE1B8F7ac9037";
 const CHAIN = (process.env.BASE_CHAIN || "base-sepolia").toLowerCase() === "base" ? base : baseSepolia;
 const BASE_RPC = process.env.BASE_RPC_URL || (CHAIN.id === base.id ? "https://mainnet.base.org" : "https://sepolia.base.org");
 
@@ -66,11 +60,13 @@ const STATUS_NAME = Object.fromEntries(Object.entries(STATUS).map(([k, v]) => [v
 
 const escrowAbi = parseAbi([
   "function getEscrow(string paymentId) view returns ((address buyer, address seller, uint256 amount, uint8 status, string paymentId, string attestation, uint256 deadline))",
-  "function release(string paymentId, uint256 score, string attestation)",
-  "function refund(string paymentId, uint256 score, string attestation)",
-  "function releasePartial(string paymentId, uint256 sellerPercent, uint256 score, string attestation)",
+  "function release(string paymentId, uint256 score, string attestation, bytes proof)",
+  "function refund(string paymentId, uint256 score, string attestation, bytes proof)",
+  "function releasePartial(string paymentId, uint256 sellerPercent, uint256 score, string attestation, bytes proof)",
   "function relay() view returns (address)",
   "function owner() view returns (address)",
+  "function attestor() view returns (address)",
+  "function settlementHash(string paymentId, string decision, uint256 score, uint256 refundPercent, address buyer, address seller, bytes32 attestationDigest) view returns (bytes32)",
   "function expectedAttestation(string paymentId, string decision, uint256 score, uint256 refundPercent) view returns (bytes32)",
 ]);
 
@@ -212,7 +208,36 @@ export async function verifyCase(payment, escrow) {
   return { id, verdict: expectedVerdict, attestation, score: score.toString(), sellerPercent: sellerPercent.toString(), refundPercent: refundPercent.toString(), status, alreadySettled: false };
 }
 
-async function sendSettlement(wallet, pub, verified) {
+function settlementHashLocal(chainId, escrowAddress, verified, buyer, seller) {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: "uint256" },
+        { type: "address" },
+        { type: "bytes32" },
+        { type: "bytes32" },
+        { type: "uint256" },
+        { type: "uint256" },
+        { type: "address" },
+        { type: "address" },
+        { type: "bytes32" },
+      ],
+      [
+        BigInt(chainId),
+        getAddress(escrowAddress),
+        keccak256(new TextEncoder().encode(verified.id)),
+        keccak256(new TextEncoder().encode(verified.verdict)),
+        BigInt(verified.score),
+        BigInt(verified.refundPercent),
+        getAddress(buyer),
+        getAddress(seller),
+        ("0x" + verified.attestation),
+      ]
+    )
+  );
+}
+
+async function sendSettlement(wallet, pub, verified, proof) {
   const fn =
     verified.verdict === "release"
       ? "release"
@@ -221,10 +246,10 @@ async function sendSettlement(wallet, pub, verified) {
         : "releasePartial";
   const callArgs =
     verified.verdict === "partial"
-      ? [verified.id, BigInt(verified.sellerPercent), BigInt(verified.score), verified.attestation]
-      : [verified.id, BigInt(verified.score), verified.attestation];
+      ? [verified.id, BigInt(verified.sellerPercent), BigInt(verified.score), verified.attestation, proof]
+      : [verified.id, BigInt(verified.score), verified.attestation, proof];
 
-  log(`→ ${fn}(${callArgs.map((v) => String(v).slice(0, 18)).join(", ")})`);
+  log(`→ ${fn}(${verified.id}, ..., proof ${String(proof).slice(0, 10)}…)`);
   const hash = await wallet.writeContract({
     address: ESCROW,
     abi: escrowAbi,
@@ -239,7 +264,7 @@ async function sendSettlement(wallet, pub, verified) {
   return hash;
 }
 
-async function settleOne(gl, pub, wallet, id, relayAddress, ownerAddress) {
+async function settleOne(gl, pub, wallet, id, relayAddress, ownerAddress, attestorAddress) {
   log(`\n=== ${id} ===`);
   const payment = await getPayment(gl, id);
   const escrow = await pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "getEscrow", args: [id] });
@@ -267,17 +292,20 @@ async function settleOne(gl, pub, wallet, id, relayAddress, ownerAddress) {
   }
 
   const signer = wallet.account.address;
-  const allowed = [escrow.buyer, escrow.seller, relayAddress, ownerAddress].filter(Boolean);
-  if (!allowed.some((a) => sameAddr(signer, a))) {
+  if (!sameAddr(signer, attestorAddress)) {
     throw new SettlementError(
-      "NOT_PARTY",
-      `Signer ${signer} is not the buyer, seller, relay or owner of escrow ${id}; cannot settle`
+      "NOT_ATTESTOR",
+      `Signer ${signer} is not the escrow attestor ${attestorAddress}. Settlement requires the attestor key to produce proof of GenLayer finalization.`
     );
   }
 
+  const hash = settlementHashLocal(CHAIN.id, ESCROW, verified, escrow.buyer, escrow.seller);
+  const proof = await wallet.account.signMessage({ message: { raw: hash } });
+  log(`  finalization proof signed by attestor ${signer}`);
+
   let txHash;
   try {
-    txHash = await sendSettlement(wallet, pub, verified);
+    txHash = await sendSettlement(wallet, pub, verified, proof);
   } catch (err) {
     // Lost race / duplicate worker: the on-chain result wins. Re-read and only
     // accept it if it is the same settlement for this case.
@@ -312,11 +340,12 @@ async function main() {
   const pub = createPublicClient({ chain: CHAIN, transport: http(BASE_RPC) });
   const wallet = createWalletClient({ chain: CHAIN, transport: http(BASE_RPC), account });
 
-  const [relayAddress, ownerAddress] = await Promise.all([
+  const [relayAddress, ownerAddress, attestorAddress] = await Promise.all([
     pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "relay" }),
     pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "owner" }),
+    pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "attestor" }),
   ]);
-  log(`GenLayer ${GENLAYER_CONTRACT} · Base escrow ${ESCROW} (chain ${CHAIN.id}) · signer ${account.address}`);
+  log(`GenLayer ${GENLAYER_CONTRACT} · Base escrow ${ESCROW} (chain ${CHAIN.id}) · signer ${account.address} · attestor ${attestorAddress}`);
 
   let ids;
   if (wantAll) {
@@ -330,7 +359,7 @@ async function main() {
   const results = [];
   for (const id of ids) {
     try {
-      results.push(await settleOne(gl, pub, wallet, id, relayAddress, ownerAddress));
+      results.push(await settleOne(gl, pub, wallet, id, relayAddress, ownerAddress, attestorAddress));
     } catch (err) {
       if (err instanceof SettlementError && ["NOT_FINAL", "NO_ESCROW"].includes(err.code) && wantAll) {
         log(`  skip ${id}: ${err.message}`);
