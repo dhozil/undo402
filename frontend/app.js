@@ -2,7 +2,6 @@
 
 const CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
 const EXPLORER = "https://explorer-studio.genlayer.com";
-const RELAY = "0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3";
 
 const $ = (id) => document.getElementById(id);
 const paymentsEl = $("payments");
@@ -48,7 +47,6 @@ async function ensureClient() {
   }
   if (!client) client = genlayer.createClient({ chain: genlayer.studionet });
   const ca = $("contractAddr"); if (ca) ca.textContent = CONTRACT;
-  const ra = $("relayAddr"); if (ra) ra.textContent = RELAY;
   return client;
 }
 
@@ -152,7 +150,7 @@ async function showPayment(id) {
         AI confidence: ${esc(p.verdict_score)}/100 · Refund share: ${esc(p.refund_percent)}%<br>
         ${p.human_verdict ? "Human override: <strong>" + esc(p.human_verdict) + "</strong> — " + esc(p.human_reason) + "<br>" : ""}
         <a href="https://explorer-studio.genlayer.com/address/${CONTRACT}" target="_blank" rel="noreferrer">View contract ↗</a>
-        · <a href="https://sepolia.basescan.org/address/0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24" target="_blank" rel="noreferrer">Base escrow ↗</a>
+        · <a href="https://sepolia.basescan.org/address/0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F" target="_blank" rel="noreferrer">Base escrow ↗</a>
       </div>`;
   } catch (e) {
     toast(`<strong>Read failed:</strong> ${esc(e.message)}`, "error");

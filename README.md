@@ -6,9 +6,9 @@
 
 [![StudioNet](https://img.shields.io/badge/GenLayer-StudioNet-61999-2dd4a7)](https://studio.genlayer.com)
 [![Base Sepolia](https://img.shields.io/badge/Base-Sepolia-USDC-0a7d5c)](https://sepolia.basescan.org)
-[![Tests](https://img.shields.io/badge/tests-31_passing-0a7d5c)](tests/)
+[![Tests](https://img.shields.io/badge/tests-33_passing-0a7d5c)](tests/)
 [![Contract](https://img.shields.io/badge/Undo402-0x9022…Fb5a-7c5cff)](https://explorer-studio.genlayer.com/address/0x9022290256C9b4B243fD4519b9857c83e45fFb5a)
-[![Escrow](https://img.shields.io/badge/Escrow-0x8fcD…8c24-e4572e)](https://sepolia.basescan.org/address/0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24)
+[![Escrow](https://img.shields.io/badge/Escrow-0xB037…f70F-e4572e)](https://sepolia.basescan.org/address/0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F)
 
 **Agentic Commerce Infrastructure** — real USDC escrows on Base, decentralized AI-validator adjudication on GenLayer.
 
@@ -23,7 +23,7 @@
 | Layer | Network | Address |
 |---|---|---|
 | **Undo402** (adjudication) | StudioNet 61999 | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
-| **Undo402Escrow** (USDC) | Base Sepolia 84532 | `0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24` |
+| **Undo402Escrow** (USDC) | Base Sepolia 84532 | `0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F` |
 | **USDC** (testnet) | Base Sepolia | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
 ✅ **Proven live:** refund · release · partial — all three verdicts settled in real USDC on Base.
@@ -32,11 +32,9 @@
 # Frontend (static, Vercel-ready)
 cd frontend && python -m http.server 8099
 # → http://localhost:8099
-
-# API (live relay)
-pip install fastapi uvicorn pydantic
-UNDO402_CONTRACT_ADDRESS=0x9022290256C9b4B243fD4519b9857c83e45fFb5a uvicorn api.app:app --port 8000
 ```
+
+All writes are signed by the wallet you connect (MetaMask) — no backend or custodied key.
 
 ---
 
@@ -62,13 +60,13 @@ Buyer pays USDC ──▶ Base escrow (locked)
 Seller delivers ──▶ GenLayer Undo402 ──▶ AI jury (5 validators)
                         │ verdict + SHA-256 attestation
                         ▼
-Relay settles on Base ──▶ release / refund / partial
+Connected wallet settles ──▶ release / refund / partial
 ```
 
 1. **Pay** — buyer locks USDC in `Undo402Escrow` (Base Sepolia)
 2. **Deliver** — seller submits a URL; buyer accepts, mutual-agrees (2-of-2), or disputes
 3. **Adjudicate** — GenLayer validators independently judge delivery vs criteria (exact decision consensus, score ±10)
-4. **Settle** — relay executes the verdict on Base; attestation recorded as cross-chain proof
+4. **Settle** — the app re-checks the attestation, then the buyer or seller settles from their own wallet; the attestation is stored on-chain as cross-chain proof
 
 **Anti-stuck by design:** buyer timeout claim on Base · evidence deadline + default judgment · prompt-injection defense (STEP 0) · human override layer · `undetermined` = free retry, never silent failure.
 
@@ -77,14 +75,13 @@ Relay settles on Base ──▶ release / refund / partial
 ## 🏗 Architecture
 
 ```
-┌──────────────┐   ┌──────────────────┐   ┌────────────────────┐
-│  AI Agents   │──▶│  Dispute API     │──▶│  GenLayer StudioNet│
-│  (buyer/seller)     │  (FastAPI relay)│   │  Undo402 (Python)  │
+┌──────────────┐   ┌──────────────────┐
+│  AI Agents   │──▶│  Buyer / Seller  │──▶ GenLayer StudioNet
+│  (buyer/seller)  │  connected wallet│    Undo402 (Python)
 └──────────────┘   └────────┬─────────┘   └─────────┬──────────┘
                             │ verdict+attestation  │
-                 ┌──────────┴──────────┐            │
-                 │  Relay (seller key) │◀───────────┘
-                 └──────────┬──────────┘
+                            ▼                      │
+                 verify digest + verdict ◀─────────┘
                             │ release/refund/partial
                  ┌──────────▼──────────┐
                  │  Base Sepolia       │
@@ -95,11 +92,10 @@ Relay settles on Base ──▶ release / refund / partial
 
 | Component | File | Role |
 |---|---|---|
-| **Undo402** | `contracts/Undo402.py` | Adjudication + factory registry (single contract, 24 methods) |
+| **Undo402** | `contracts/Undo402.py` | Adjudication + factory registry (single contract, 27 methods) |
 | **Undo402Escrow** | `contracts/base/Undo402Escrow.sol` | Real USDC escrow on Base |
-| **Dispute API** | `api/app.py` + `api/relay.mjs` | Live relay: frontend → StudioNet → Base |
 | **Frontend** | `frontend/` | Landing · How · Integrations · Dashboard · Contracts |
-| **Tests** | `tests/direct/` + `tests/base/` | 19 direct + 12 Foundry (binding, exactly-once) |
+| **Tests** | `tests/direct/` + `tests/base/` | 19 direct + 14 Foundry (binding, exactly-once) |
 
 ---
 
@@ -132,7 +128,9 @@ claimTimeout(paymentId)                                      // buyer, after dea
 Every settlement call must present the SHA-256 attestation GenLayer produced
 for that exact case. The escrow recomputes it on-chain (payment id, verdict,
 score, refund split, buyer, seller), so empty or arbitrary attestations revert
-and each case settles at most once. See [`docs/SETTLEMENT.md`](docs/SETTLEMENT.md).
+and each case settles at most once. In the app, the buyer or seller signs the
+settlement with their own connected wallet. See
+[`docs/SETTLEMENT.md`](docs/SETTLEMENT.md).
 
 ---
 
@@ -162,9 +160,8 @@ vercel --prod   # Root Directory: frontend
 contracts/
   Undo402.py                  # GenLayer adjudication (single contract)
   base/Undo402Escrow.sol      # Base USDC escrow
-api/       app.py · relay.mjs # Live Dispute API relay
-frontend/  index.html · app.js · router.js · styles.css
-scripts/   settle.mjs · e2e_*.mjs · api_call.mjs · wallet.mjs
+frontend/  index.html · app.js · actions.js · router.js · styles.css
+scripts/   settle.mjs · e2e_*.mjs · wallet.mjs
 tests/     direct/test_undo402.py · base/Undo402Escrow.t.sol
 docs/      SETTLEMENT · ANALYSIS · ARCHITECTURE · AUDIT_PATTERN · GENLAYER_REVIEW
 DEPLOYMENT.md · VERCEL.md
@@ -177,7 +174,7 @@ DEPLOYMENT.md · VERCEL.md
 ```bash
 genvm-lint check contracts/Undo402.py   # lint + validate
 pytest tests/direct/ -v                  # direct tests
-forge test -vv                           # escrow binding + exactly-once (12 tests)
+forge test -vv                           # escrow binding + exactly-once (14 tests)
 WALLET_DIR=/path/to/wallet node scripts/settle.mjs --payment pay-1 --check
 ```
 

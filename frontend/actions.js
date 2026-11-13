@@ -1,8 +1,7 @@
 // Dashboard actions — plain script, no imports. Works even if chain module fails.
-// Strategy: try relay API first (fast, demo), fall back to direct wallet
-// signing via genlayer-js (works on Vercel for any visitor, no backend).
+// Every write is signed by the wallet the user connected (MetaMask); there is
+// no backend key and no relay round-trip.
 (function () {
-  var API = (window.UNDO402 && window.UNDO402.API_URL) || "http://localhost:8000";
   var CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
   function $(id) { return document.getElementById(id); }
   function toast(msg, kind) {
@@ -133,7 +132,7 @@
   bind("btnRefresh", function () { if (window.loadPayments) window.loadPayments(); else toast("Dashboard data module not loaded yet.", "error"); });
 
   // Base escrow actions (viem + MetaMask on Base Sepolia)
-  var ESCROW = (window.UNDO402 && window.UNDO402.ESCROW_CONTRACT) || "0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24";
+  var ESCROW = (window.UNDO402 && window.UNDO402.ESCROW_CONTRACT) || "0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F";
   var USDC = (window.UNDO402 && window.UNDO402.USDC) || "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
   async function baseClient() {
     if (!window.ethereum) throw new Error("Connect MetaMask first.");
@@ -151,7 +150,7 @@
     const wallet = createWalletClient({ chain: baseSepolia, transport: custom(window.ethereum), account: address });
     return { pub, wallet };
   }
-  async function baseWrite(fn, args, label, opts) {
+  async function baseWrite(fn, args, label) {
     var btn = null;
     try {
       toast("<strong>" + label + "…</strong> check MetaMask (Base Sepolia)");
@@ -165,12 +164,6 @@
         claimTimeout: [{ type: "function", name: "claimTimeout", inputs: [{ type: "string" }], outputs: [], stateMutability: "nonpayable" }],
       };
       const addr = fn === "approve" ? USDC : ESCROW;
-      if (opts && opts.requireRelay) {
-        const rel = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "relay", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" }], functionName: "relay" });
-        if (String(rel).toLowerCase() !== String(wallet.account.address).toLowerCase()) {
-          throw new Error("Only the escrow relay (" + rel + ") can settle. Connect that wallet or run scripts/settle.mjs.");
-        }
-      }
       const h = await wallet.writeContract({ address: addr, abi: escrowAbi[fn], functionName: fn, args });
       await pub.waitForTransactionReceipt({ hash: h });
       toast("<strong>" + label + " success.</strong><br><a href=\"https://sepolia.basescan.org/tx/" + h + "\" target=\"_blank\" rel=\"noreferrer\">tx " + h.slice(0, 10) + "… ↗</a>" + (fn === "createEscrow" ? "<br><span class='muted'>Copy this tx hash into Proof field below 👇</span>" : ""), "success");
@@ -180,7 +173,7 @@
     }
   }
   // Verify the finalized GenLayer case before touching Base. This mirrors
-  // scripts/settle.mjs and the on-chain check in Undo402Escrow v4.
+  // scripts/settle.mjs and the on-chain check in Undo402Escrow v5.
   async function genPayment(pid) {
     const { createClient } = await import("genlayer-js");
     const { studionet } = await import("genlayer-js/chains");
@@ -214,10 +207,14 @@
       if (digest !== String(p.attestation_digest).toLowerCase()) {
         throw new Error("Attestation is not bound to " + pid + " (verdict/score/split/parties mismatch).");
       }
+      const me = window.__walletAddr ? String(window.__walletAddr).toLowerCase() : "";
+      if (me && me !== String(p.buyer).toLowerCase() && me !== String(p.seller).toLowerCase()) {
+        throw new Error("Connect the buyer or seller wallet for " + pid + " — settlement is signed by your own wallet.");
+      }
       const args = expected === "partial"
         ? [pid, 100n - refundPercent, BigInt(p.verdict_score), digest]
         : [pid, BigInt(p.verdict_score), digest];
-      await baseWrite(expected === "partial" ? "releasePartial" : expected, args, "Settle " + expected, { requireRelay: true });
+      await baseWrite(expected === "partial" ? "releasePartial" : expected, args, "Settle " + expected);
     } catch (e) {
       toast("<strong>Settlement blocked:</strong> " + esc(e.message), "error");
     }

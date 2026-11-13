@@ -7,6 +7,7 @@ interface Vm {
     function prank(address) external;
     function warp(uint256) external;
     function expectRevert() external;
+    function expectRevert(bytes calldata) external;
     function parseAddress(string calldata) external pure returns (address);
 }
 
@@ -175,12 +176,31 @@ contract Undo402EscrowTest {
         require(usdc.balanceOf(BUYER) == 100_000_000, "no second payout");
     }
 
-    function testOnlyRelayCanSettle() public {
+    function testOutsiderCannotSettle() public {
+        _funded("pay-1", SELLER);
+        bytes32 d = escrow.computeAttestation("pay-1", "refund", 0, 100, BUYER, SELLER);
+        vm.prank(OTHER);
+        vm.expectRevert("Not party/relay");
+        escrow.refund("pay-1", 0, _hex(d));
+        require(_status("pay-1") == 1, "status must stay FUNDED");
+    }
+
+    function testBuyerSettlesRefundWithOwnWallet() public {
         _funded("pay-1", SELLER);
         bytes32 d = escrow.computeAttestation("pay-1", "refund", 0, 100, BUYER, SELLER);
         vm.prank(BUYER);
-        vm.expectRevert();
         escrow.refund("pay-1", 0, _hex(d));
+        require(_status("pay-1") == 3, "buyer executed the refund");
+        require(usdc.balanceOf(BUYER) == 100_000_000, "buyer refunded");
+    }
+
+    function testSellerSettlesReleaseWithOwnWallet() public {
+        _funded("pay-1", SELLER);
+        bytes32 d = escrow.computeAttestation("pay-1", "release", 0, 0, BUYER, SELLER);
+        vm.prank(SELLER);
+        escrow.release("pay-1", 0, _hex(d));
+        require(_status("pay-1") == 2, "seller executed the release");
+        require(usdc.balanceOf(SELLER) == AMOUNT, "seller paid");
     }
 
     // ------------------------------------------------------------------

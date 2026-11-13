@@ -12,7 +12,7 @@
   async function connect() {
     var btn = document.getElementById("connectBtn");
     try {
-      if (!window.ethereum) throw new Error("No wallet extension found. Install MetaMask, or continue with the relay demo account — reads work without a wallet.");
+      if (!window.ethereum) throw new Error("No wallet extension found. Install MetaMask to sign transactions — reads still work without a wallet.");
       btn.disabled = true;
       btn.textContent = "Connecting…";
       var addr = await window.ethereum.request({ method: "eth_requestAccounts" });

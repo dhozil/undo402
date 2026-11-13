@@ -1,6 +1,6 @@
 # Undo402 on Vercel
 
-Static frontend only (`frontend/`). Backend API (`api/app.py`) must run separately (Railway/Fly.io/local) — set its URL in `frontend/app.js` (`const API = "http://localhost:8000"`).
+Static frontend only (`frontend/`). All writes are signed by the visitor's own wallet via MetaMask — no backend needed.
 
 ## Deploy via dashboard (recommended)
 1. Push this repo to GitHub

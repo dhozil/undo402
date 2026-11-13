@@ -1,6 +1,6 @@
 # Base escrow — real USDC movement
 
-`Undo402Escrow.sol` holds **real USDC** on Base. GenLayer never touches USDC; the relay bridges verdicts.
+`Undo402Escrow.sol` holds **real USDC** on Base. GenLayer never touches USDC; the finalized verdict and its bound attestation authorize the transfer.
 
 ## Deploy (Base Sepolia)
 
@@ -16,12 +16,16 @@ forge create --rpc-url https://sepolia.base.org \
 
 ## Flow
 
-1. Buyer `approve(escrow, amount)` + `createEscrow("pay-1", seller, 1000000)` on Base
-2. Relay verifies Base tx, calls `Undo402.create_payment(..., payment_proof=<tx>, amount_usdc=1000000)` on StudioNet
+1. Buyer `approve(escrow, amount)` + `createEscrow("pay-v5-demo", seller, 1000000, ttl)` on Base
+2. Buyer calls `Undo402.create_payment_with_id("pay-v5-demo", ..., payment_proof=<Base tx>)` on StudioNet — the same ID on both chains
 3. Seller delivers, buyer disputes (or mutual agreement)
 4. `resolve_dispute` on GenLayer → verdict + `attestation_digest`
-5. Relay calls `release("pay-1", attestation)` or `refund("pay-1", attestation)` on Base escrow
+5. Buyer or seller (or relay/owner) calls `release("pay-v5-demo", score, digest)`, `refund(...)`, or `releasePartial(...)`
 6. USDC moves to seller/buyer; attestation recorded on-chain as cross-chain proof
+
+The escrow recomputes the SHA-256 digest on-chain, so an empty or arbitrary
+attestation reverts with `Attestation not bound to case`, and the
+`FUNDED → terminal` transition makes settlement exactly-once.
 
 ## Why Base Sepolia + StudioNet?
 

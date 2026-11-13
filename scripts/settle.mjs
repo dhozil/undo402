@@ -25,8 +25,9 @@
 //        - already terminal + same attestation  -> exit 0, no tx (already settled)
 //        - already terminal + different digest  -> exit 1 (conflicting settlement)
 //        - FUNDED + valid attestation           -> send exactly one tx
-//      A lost race (e.g. two relay workers) re-reads the escrow and treats the
-//      on-chain outcome as authoritative instead of double-spending.
+//      A lost race (e.g. two wallets settling the same case) re-reads the
+//      escrow and treats the on-chain outcome as authoritative instead of
+//      double-spending.
 //
 // Usage:
 //   node scripts/settle.mjs --payment pay-1
@@ -38,7 +39,7 @@
 //   ESCROW                    Base escrow address (default below)
 //   GENLAYER_RPC_URL          default https://studio.genlayer.com/api
 //   BASE_RPC_URL              default https://sepolia.base.org
-//   WALLET_DIR                folder with seller.json (relay key)
+//   WALLET_DIR                folder with seller.json (demo payer)
 //   GENLAYER_PRIVATE_KEY      alternative to WALLET_DIR
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
@@ -51,7 +52,7 @@ import { sellerWallet } from "./wallet.mjs";
 const GENLAYER_CONTRACT =
   process.env.UNDO402_CONTRACT_ADDRESS || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
 const ESCROW =
-  process.env.ESCROW || process.env.ESCROW_CONTRACT || "0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24";
+  process.env.ESCROW || process.env.ESCROW_CONTRACT || "0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F";
 const CHAIN = (process.env.BASE_CHAIN || "base-sepolia").toLowerCase() === "base" ? base : baseSepolia;
 const BASE_RPC = process.env.BASE_RPC_URL || (CHAIN.id === base.id ? "https://mainnet.base.org" : "https://sepolia.base.org");
 
@@ -69,6 +70,7 @@ const escrowAbi = parseAbi([
   "function refund(string paymentId, uint256 score, string attestation)",
   "function releasePartial(string paymentId, uint256 sellerPercent, uint256 score, string attestation)",
   "function relay() view returns (address)",
+  "function owner() view returns (address)",
   "function expectedAttestation(string paymentId, string decision, uint256 score, uint256 refundPercent) view returns (bytes32)",
 ]);
 
@@ -237,7 +239,7 @@ async function sendSettlement(wallet, pub, verified) {
   return hash;
 }
 
-async function settleOne(gl, pub, wallet, id, relayAddress) {
+async function settleOne(gl, pub, wallet, id, relayAddress, ownerAddress) {
   log(`\n=== ${id} ===`);
   const payment = await getPayment(gl, id);
   const escrow = await pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "getEscrow", args: [id] });
@@ -265,10 +267,11 @@ async function settleOne(gl, pub, wallet, id, relayAddress) {
   }
 
   const signer = wallet.account.address;
-  if (!sameAddr(signer, relayAddress)) {
+  const allowed = [escrow.buyer, escrow.seller, relayAddress, ownerAddress].filter(Boolean);
+  if (!allowed.some((a) => sameAddr(signer, a))) {
     throw new SettlementError(
-      "NOT_RELAY",
-      `Signer ${signer} is not the escrow relay ${relayAddress}; cannot settle`
+      "NOT_PARTY",
+      `Signer ${signer} is not the buyer, seller, relay or owner of escrow ${id}; cannot settle`
     );
   }
 
@@ -309,8 +312,11 @@ async function main() {
   const pub = createPublicClient({ chain: CHAIN, transport: http(BASE_RPC) });
   const wallet = createWalletClient({ chain: CHAIN, transport: http(BASE_RPC), account });
 
-  const relayAddress = await pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "relay" });
-  log(`GenLayer ${GENLAYER_CONTRACT} · Base escrow ${ESCROW} (chain ${CHAIN.id}) · relay ${relayAddress}`);
+  const [relayAddress, ownerAddress] = await Promise.all([
+    pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "relay" }),
+    pub.readContract({ address: ESCROW, abi: escrowAbi, functionName: "owner" }),
+  ]);
+  log(`GenLayer ${GENLAYER_CONTRACT} · Base escrow ${ESCROW} (chain ${CHAIN.id}) · signer ${account.address}`);
 
   let ids;
   if (wantAll) {
@@ -324,7 +330,7 @@ async function main() {
   const results = [];
   for (const id of ids) {
     try {
-      results.push(await settleOne(gl, pub, wallet, id, relayAddress));
+      results.push(await settleOne(gl, pub, wallet, id, relayAddress, ownerAddress));
     } catch (err) {
       if (err instanceof SettlementError && ["NOT_FINAL", "NO_ESCROW"].includes(err.code) && wantAll) {
         log(`  skip ${id}: ${err.message}`);

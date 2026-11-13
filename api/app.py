@@ -23,7 +23,7 @@ app = FastAPI(title="Undo402 Dispute API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0x9022290256C9b4B243fD4519b9857c83e45fFb5a")
-ESCROW_ADDRESS = os.environ.get("ESCROW", os.environ.get("ESCROW_CONTRACT", "0x8fcD766B2f52Fa754DE24207E3cA19EcD7AF8c24"))
+ESCROW_ADDRESS = os.environ.get("ESCROW", os.environ.get("ESCROW_CONTRACT", "0xB03759B87A19776a63BD2D7f8CB2f14cDFB8f70F"))
 STUDIONET_RPC = "https://studio.genlayer.com/api"
 CHAIN_ID = 61999
 Rail = Literal["x402", "chain", "card"]

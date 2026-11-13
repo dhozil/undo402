@@ -8,8 +8,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 /// @title Undo402Escrow — USDC escrow on Base (Sepolia / mainnet)
 /// @notice Holds REAL stablecoin (USDC) for agentic payments.
 ///         GenLayer (Undo402) adjudicates the dispute; this contract only
-///         holds and releases USDC based on the relay's verdict.
-/// @dev v4: attestation binding is enforced ON-CHAIN. Every settlement call
+///         holds and releases USDC based on the verified verdict.
+/// @dev v5: attestation binding is enforced ON-CHAIN. Every settlement call
 ///      must present the exact SHA-256 digest that GenLayer produced for this
 ///      case:
 ///
@@ -19,8 +19,11 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 ///      The buyer/seller are read from the escrow, so the digest can only
 ///      match if it was produced for this payment id, this verdict, this
 ///      score, this refund split and these exact parties. Empty or arbitrary
-///      attestations revert. The FUNDED -> terminal status transition is the
-///      idempotency guard: settlement can succeed exactly once.
+///      attestations revert. Settlement can be submitted by the buyer, the
+///      seller, the relay or the owner, so a user's connected wallet can
+///      execute the finalized verdict without trusting a backend. The
+///      FUNDED -> terminal status transition is the idempotency guard:
+///      settlement can succeed exactly once.
 contract Undo402Escrow is Ownable {
     using SafeERC20 for IERC20;
 
@@ -62,7 +65,7 @@ contract Undo402Escrow is Ownable {
 
     /// @notice Create escrow: buyer approves USDC first, then calls this.
     /// @param ttlSeconds Buyer timeout window (e.g. 86400 = 1 day). After this,
-    ///        buyer can claim refund directly even if relay is offline.
+    ///        buyer can claim refund directly even if nobody settles.
     function createEscrow(string calldata paymentId, address seller, uint256 amount, uint256 ttlSeconds) external {
         require(bytes(paymentId).length > 0, "Empty paymentId");
         require(seller != address(0) && seller != msg.sender, "Invalid seller");
@@ -85,7 +88,10 @@ contract Undo402Escrow is Ownable {
     /// @notice Release USDC to seller (GenLayer verdict: release).
     /// @param score GenLayer verdict_score bound into the attestation.
     /// @param attestation GenLayer attestation_digest (64 lowercase hex chars).
-    function release(string calldata paymentId, uint256 score, string calldata attestation) external onlyRelay {
+    /// @dev Callable by the buyer, the seller, the relay or the owner. The
+    ///      bound attestation decides where the money goes, so the caller can
+    ///      only execute the verdict that GenLayer already produced.
+    function release(string calldata paymentId, uint256 score, string calldata attestation) external {
         Escrow storage e = escrows[paymentId];
         _requireBound(e, paymentId, "release", score, 0, attestation);
         e.status = Status.RELEASED;
@@ -97,7 +103,10 @@ contract Undo402Escrow is Ownable {
     /// @notice Refund USDC to buyer (GenLayer verdict: refund).
     /// @param score GenLayer verdict_score bound into the attestation.
     /// @param attestation GenLayer attestation_digest (64 lowercase hex chars).
-    function refund(string calldata paymentId, uint256 score, string calldata attestation) external onlyRelay {
+    /// @dev Callable by the buyer, the seller, the relay or the owner. A
+    ///      buyer can therefore claim a refund with their own connected
+    ///      wallet once GenLayer has finalized the case.
+    function refund(string calldata paymentId, uint256 score, string calldata attestation) external {
         Escrow storage e = escrows[paymentId];
         _requireBound(e, paymentId, "refund", score, 100, attestation);
         e.status = Status.REFUNDED;
@@ -111,8 +120,9 @@ contract Undo402Escrow is Ownable {
     /// @param score GenLayer verdict_score bound into the attestation.
     /// @param attestation GenLayer attestation_digest (64 lowercase hex chars).
     /// @dev The attestation commits to refundPercent = 100 - sellerPercent,
-    ///      so a verdict cannot be replayed with a different split.
-    function releasePartial(string calldata paymentId, uint256 sellerPercent, uint256 score, string calldata attestation) external onlyRelay {
+    ///      so a verdict cannot be replayed with a different split. Callable
+    ///      by the buyer, seller, relay or owner.
+    function releasePartial(string calldata paymentId, uint256 sellerPercent, uint256 score, string calldata attestation) external {
         require(sellerPercent > 0 && sellerPercent < 100, "Percent 1-99");
         Escrow storage e = escrows[paymentId];
         uint256 refundPercent = 100 - sellerPercent;
@@ -186,8 +196,11 @@ contract Undo402Escrow is Ownable {
     // Internal verification helpers
     // ------------------------------------------------------------------
 
-    /// @dev Reverts unless the escrow is funded and `attestation` is the
-    ///      digest GenLayer produced for this exact case.
+    /// @dev Reverts unless the caller is a party/relay, the escrow is funded,
+    ///      and `attestation` is the digest GenLayer produced for this exact
+    ///      case. The caller check lets a connected buyer or seller wallet
+    ///      settle without a backend, while the attestation check pins the
+    ///      outcome (payment id, verdict, score, split, parties).
     function _requireBound(
         Escrow storage e,
         string memory paymentId,
@@ -196,6 +209,10 @@ contract Undo402Escrow is Ownable {
         uint256 refundPercent,
         string memory attestation
     ) internal view {
+        require(
+            msg.sender == e.buyer || msg.sender == e.seller || msg.sender == relay || msg.sender == owner(),
+            "Not party/relay"
+        );
         require(bytes(e.paymentId).length > 0, "No escrow");
         require(e.status == Status.FUNDED, "Not funded");
         bytes32 supplied = _decodeDigest(attestation);
