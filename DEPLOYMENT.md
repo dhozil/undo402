@@ -4,7 +4,7 @@
 
 | Contract | Address |
 |---|---|
-| **Undo402 hardened (active, on-chain criteria min-length ≥10)** ⭐ | `0xaee085b0f4921953dD3474a15467D73E3E90F2AD` |
+| **Undo402 hardened (active, on-chain criteria min-length ≥10)** ⭐ | `0xaee085b0f4921953dD3474a15467D73E3E90F2AD` (deploy tx `0xba0b432e3ee056a2bf9736e3ba5be9cf90cce971c01b690a1c3afef4afbc4bcb`) |
 | Undo402 v9 (user-chosen payment id, live adversarial/E2E history) | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
 | Undo402 v8 (Sacramentum adoption) | `0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7` |
 | Undo402 v7 (evidence manifest + conserved + timeout) | `0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc` |
@@ -59,6 +59,8 @@
 - `pay-2`: AI verdict refund (jsonplaceholder judged failing) — relay now gates on verdict match
 
 Run: `UNDO402_CONTRACT_ADDRESS=0xaee0…2AD ESCROW=0x85bC… node scripts/settle.mjs --payment <id>` (idempotent; signer must be attestor to produce finalization proof). To let another authorized party submit: `node scripts/settle.mjs --payment <id> --print-proof` and paste the proof into the dashboard. (Historical v9 cases use `UNDO402_CONTRACT_ADDRESS=0x9022…Fb5a`.)
+
+**Historical migration to hardened contract (2026-11-13):** key cases re-created on `0xaee0…2AD` with same IDs/params and matching terminal verdicts/attestations: `pay-v9-demo` (REFUNDED, `4ed9cecb…`), `pay-v5-demo` (REFUNDED, `9b2c4d78…`), `pay-v6-proof` (REFUNDED, `84566d2f…`), `adv-good-1794580646961` (REFUNDED, `5f46a50e…`), `adv-mutual-1794582890001` (RELEASED, `5e2f8b59…`). `adv-crit-1794580528347` was **not migrated** (correctly rejected: criteria too short, hardening). Hardened stats: `payment_count=5, total_recorded_usdc=500000, total_settled_usdc=500000, conserved=True`. See [`docs/HISTORICAL_MIGRATION.md`](docs/HISTORICAL_MIGRATION.md). (Original Base USDC settlements/tx history remain the canonical cross-chain proofs; migration adds adjudication continuity on the active contract.)
 
 ## Wallets (external, never committed)
 
