@@ -84,9 +84,13 @@ async function loadPayments() {
     if (dd && dd.tagName === "SELECT") {
       const cur = dd.value;
       const wallet = window.__walletAddr ? String(window.__walletAddr).toLowerCase() : "";
-      const mine = wallet ? payments.filter((p) => String(p.seller || "").toLowerCase() === wallet || String(p.buyer || "").toLowerCase() === wallet) : payments;
-      dd.innerHTML = `<option value="">— choose a payment${wallet ? ` (${mine.length} yours)` : ` (${payments.length} total)`} —</option>` + mine.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
-      if (!mine.length && wallet) dd.innerHTML += `<option disabled>No payments for this wallet yet</option>`;
+      const mine = wallet ? payments.filter((p) => String(p.seller || "").toLowerCase() === wallet || String(p.buyer || "").toLowerCase() === wallet) : [];
+      if (!wallet) {
+        dd.innerHTML = `<option value="">— connect wallet to see your payments —</option>`;
+      } else {
+        dd.innerHTML = `<option value="">— choose a payment (${mine.length} yours) —</option>` + mine.map((p) => `<option value="${esc(p.id)}">${esc(p.id)} · ${esc(p.state)} · ${(Number(p.amount_usdc) / 1e6).toFixed(2)} USDC</option>`).join("");
+        if (!mine.length) dd.innerHTML += `<option disabled>No payments for this wallet yet</option>`;
+      }
       if (cur && mine.some((p) => p.id === cur)) dd.value = cur;
       dd.dispatchEvent(new Event("input"));
     }
