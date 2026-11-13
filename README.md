@@ -7,7 +7,7 @@
 [![StudioNet](https://img.shields.io/badge/GenLayer-StudioNet-61999-2dd4a7)](https://studio.genlayer.com)
 [![Base Sepolia](https://img.shields.io/badge/Base-Sepolia-USDC-0a7d5c)](https://sepolia.basescan.org)
 [![Tests](https://img.shields.io/badge/tests-33_passing-0a7d5c)](tests/)
-[![Contract](https://img.shields.io/badge/Undo402-0x9022…Fb5a-7c5cff)](https://explorer-studio.genlayer.com/address/0x9022290256C9b4B243fD4519b9857c83e45fFb5a)
+[![Contract](https://img.shields.io/badge/Undo402-0xaee0…2AD-7c5cff)](https://explorer-studio.genlayer.com/address/0xaee085b0f4921953dD3474a15467D73E3E90F2AD)
 [![Escrow](https://img.shields.io/badge/Escrow-0x85bC…9037-e4572e)](https://sepolia.basescan.org/address/0x85bC06C938532EF89388A401637bE1B8F7ac9037)
 
 **Agentic Commerce Infrastructure** — real USDC escrows on Base, decentralized AI-validator adjudication on GenLayer.
@@ -22,7 +22,8 @@
 
 | Layer | Network | Address |
 |---|---|---|
-| **Undo402** (adjudication) | StudioNet 61999 | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
+| **Undo402** (adjudication, hardened) | StudioNet 61999 | `0xaee085b0f4921953dD3474a15467D73E3E90F2AD` |
+| Undo402 v9 (live test history) | StudioNet 61999 | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
 | **Undo402Escrow** (USDC) | Base Sepolia 84532 | `0x85bC06C938532EF89388A401637bE1B8F7ac9037` |
 | **USDC** (testnet) | Base Sepolia | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
@@ -66,7 +67,7 @@ Connected wallet settles ──▶ release / refund / partial
 1. **Pay** — buyer locks USDC in `Undo402Escrow` (Base Sepolia)
 2. **Deliver** — seller submits a URL; buyer accepts, mutual-agrees (2-of-2), or disputes
 3. **Adjudicate** — GenLayer validators independently judge delivery vs criteria (exact decision consensus, score ±10)
-4. **Settle** — the app re-checks the finalized verdict and attestation binding, then settlement is executed with an **attestor finalization proof** (ECDSA signature produced after verifying GenLayer finality) so a party cannot self-attest a chosen verdict by computing the public hash alone; the attestation/proof are recorded as cross-chain proof and settlement is exactly-once
+4. **Settle** — the app re-checks the finalized verdict and attestation binding, then settlement is executed with an **attestor finalization proof** (ECDSA signature produced after verifying GenLayer finality) so a party cannot self-attest a chosen verdict by computing the public hash alone. The attestor can sign in-browser, or share the proof (e.g. `scripts/settle.mjs --print-proof`) so any authorized party (buyer/seller/owner/relay) can submit settlement with the provided proof; settlement is exactly-once.
 
 **Anti-stuck by design:** buyer timeout claim on Base · evidence deadline + default judgment · prompt-injection defense (STEP 0) · human override layer · `undetermined` = free retry, never silent failure.
 

@@ -35,7 +35,7 @@ A buyer/seller can still compute the public attestation hash, but **cannot settl
 | R8 | **No backend/relay API dependency**: writes signed by the **user’s connected wallet** (MetaMask); no relay-API deployment reminders | **Resolved** |
 | R9 | Base settlement must **reject arbitrary/empty attestations not bound to the case** | **Resolved** |
 | R10 | **Base escrow ID and GenLayer payment ID must match** | **Resolved** |
-| R11 | Settlement must work from the **buyer’s or seller’s own connected wallet** (not relay-only) | **Resolved** (tx submitted from connected/authorized wallet with on-chain attestor finalization proof) |
+| R11 | Settlement must work from the **buyer’s or seller’s own connected wallet** (not relay-only) | **Resolved** (tx submitted from connected/authorized wallet with on-chain attestor finalization proof; attestor may sign in-browser or share proof via `settle.mjs --print-proof` so any authorized party can submit with the provided proof) |
 | R12 *(rejection)* | Base path must require **proof that GenLayer finalized that outcome** (not just a self-computed public hash) | **Resolved (v6)** |
 
 ---
@@ -44,7 +44,8 @@ A buyer/seller can still compute the public attestation hash, but **cannot settl
 
 | Layer | Network | Address / details |
 |---|---|---|
-| Undo402 adjudication (v9) | GenLayer **StudioNet** (61999) | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
+| Undo402 adjudication (hardened, active) | GenLayer **StudioNet** (61999) | `0xaee085b0f4921953dD3474a15467D73E3E90F2AD` (redeploy tx `0xba0b432e3ee056a2bf9736e3ba5be9cf90cce971c01b690a1c3afef4afbc4bcb`; on-chain criteria min-length ≥10) |
+| Undo402 adjudication (v9, live test history) | GenLayer **StudioNet** (61999) | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
 | Undo402Escrow (v6) | **Base Sepolia** (84532) | `0x85bC06C938532EF89388A401637bE1B8F7ac9037` (deploy `0x86de302cb8d06c7089ab66b49326d7521663290cecfce9906eb0b03b513474ea`, attestor `0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3`) |
 | Payment asset | Base Sepolia | USDC `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (**no GEN**) |
 | Frontend | Vercel | https://undo402pay.vercel.app/ (v6 config, no API/relay dependency) |
@@ -57,7 +58,7 @@ Historical escrows (v1–v5) documented in `DEPLOYMENT.md`; app/config target **
 
 ### R1, R9, R12 — Idempotent, bound settlement with proof of GenLayer finalization
 
-**Canonical path:** `scripts/settle.mjs` (verifies + signs attestor proof + settles) and `frontend/actions.js` (re-verifies; submits from connected attestor wallet with proof).
+**Canonical path:** `scripts/settle.mjs` (verifies + signs attestor proof + settles, or `--print-proof` to output proof without sending) and `frontend/actions.js` (re-verifies; attestor can sign in-browser, or any authorized connected party can submit by pasting an obtained attestor finalization proof).
 
 **Verification before any Base tx:**
 1. **Final state:** `RELEASED|REFUNDED|PARTIAL` only (`NOT_FINAL` otherwise).
@@ -102,7 +103,7 @@ Historical escrows (v1–v5) documented in `DEPLOYMENT.md`; app/config target **
 - `create_payment_with_id` (GenLayer v9) + frontend uses the same escrow/payment ID string.
 
 ### R11 — Settlement from connected wallet (not relay-only)
-- Settlement tx is submitted from an authorized connected wallet. v6 requires an attestor finalization proof for security: if the connected wallet is the attestor it signs the proof in-browser and submits; otherwise `scripts/settle.mjs` (attestor) verifies GenLayer finality, signs the proof, and submits the exactly-once settlement (canonical path).
+- Settlement tx is submitted from an authorized connected wallet. v6 requires an attestor finalization proof for security: the attestor verifies GenLayer finality and produces the proof (in-browser signing when connected as attestor, or `node scripts/settle.mjs --print-proof` to share). Any authorized party (buyer/seller/owner/relay/attestor) can submit the exactly-once settlement with that valid proof; proof-of-finalization remains mandatory on-chain. `scripts/settle.mjs` can also verify+sign+submit directly.
 
 ---
 

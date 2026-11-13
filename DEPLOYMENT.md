@@ -4,7 +4,8 @@
 
 | Contract | Address |
 |---|---|
-| **Undo402 v9 (user-chosen payment id)** ⭐ | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
+| **Undo402 hardened (active, on-chain criteria min-length ≥10)** ⭐ | `0xaee085b0f4921953dD3474a15467D73E3E90F2AD` |
+| Undo402 v9 (user-chosen payment id, live adversarial/E2E history) | `0x9022290256C9b4B243fD4519b9857c83e45fFb5a` |
 | Undo402 v8 (Sacramentum adoption) | `0x2Fa0B3d119FC8F6D54Ec643C8332c1fc22673fb7` |
 | Undo402 v7 (evidence manifest + conserved + timeout) | `0xa2BFf07689Db9365597946858262Ca8dD6b7a1bc` |
 | Undo402 v6 (stablecoin adjudication) | `0x6C7ea251273aC4FDF8d3C9B36F2E3089bb4c3660` |
@@ -57,7 +58,7 @@
 - `pay-3`: human override **partial 50%** → Base `releasePartial` (`0xb679…`) → buyer +1, seller +1 ✅
 - `pay-2`: AI verdict refund (jsonplaceholder judged failing) — relay now gates on verdict match
 
-Run: `UNDO402_CONTRACT_ADDRESS=0x9022… ESCROW=0x85bC… node scripts/settle.mjs --payment <id>` (idempotent; signer must be attestor to produce finalization proof) or historical release scripts.
+Run: `UNDO402_CONTRACT_ADDRESS=0xaee0…2AD ESCROW=0x85bC… node scripts/settle.mjs --payment <id>` (idempotent; signer must be attestor to produce finalization proof). To let another authorized party submit: `node scripts/settle.mjs --payment <id> --print-proof` and paste the proof into the dashboard. (Historical v9 cases use `UNDO402_CONTRACT_ADDRESS=0x9022…Fb5a`.)
 
 ## Wallets (external, never committed)
 

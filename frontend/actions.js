@@ -2,7 +2,7 @@
 // Every write is signed by the wallet the user connected (MetaMask); there is
 // no backend key and no relay round-trip.
 (function () {
-  var CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
+  var CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0xaee085b0f4921953dD3474a15467D73E3E90F2AD";
   function $(id) { return document.getElementById(id); }
   function toast(msg, kind) {
     var box = document.getElementById("toasts");
@@ -211,22 +211,30 @@
       const { pub, wallet } = await baseClient();
       const attestor = await pub.readContract({ address: ESCROW, abi: [{ type: "function", name: "attestor", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" }], functionName: "attestor" });
       const me = String(wallet.account.address).toLowerCase();
-      if (me !== String(attestor).toLowerCase()) {
-        throw new Error("Settlement requires an attestor signature proving GenLayer finalized this case. Connect the attestor wallet (" + attestor + ") to settle from the browser, or run: node scripts/settle.mjs --payment " + pid);
+      var proof = "";
+      var proofInput = $("eProof") && $("eProof").value ? $("eProof").value.trim() : "";
+      if (proofInput) {
+        if (!/^0x[0-9a-fA-F]+$/.test(proofInput) || proofInput.length < 10) {
+          throw new Error("Attestor finalization proof must be hex bytes (0x...). Obtain it from the attestor (e.g. node scripts/settle.mjs --payment " + pid + " --print-proof) or connect the attestor wallet to sign.");
+        }
+        proof = proofInput;
+      } else if (me === String(attestor).toLowerCase()) {
+        // Build the same settlement hash as the escrow and sign it as proof of finalization.
+        const settlementHash = keccak256(encodeAbiParameters(
+          [
+            { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "bytes32" },
+            { type: "uint256" }, { type: "uint256" }, { type: "address" }, { type: "address" }, { type: "bytes32" },
+          ],
+          [
+            BigInt(84532), getAddress(ESCROW), keccak256(new TextEncoder().encode(p.id)), keccak256(new TextEncoder().encode(expected)),
+            BigInt(p.verdict_score), refundPercent, getAddress(p.buyer), getAddress(p.seller), ("0x" + digest),
+          ]
+        ));
+        toast("<strong>Sign finalization proof</strong> in MetaMask (Base Sepolia)");
+        proof = await wallet.signMessage({ account: wallet.account, message: { raw: settlementHash } });
+      } else {
+        throw new Error("Settlement requires an attestor finalization proof. Paste the proof obtained from the attestor into the 'Attestor finalization proof' field and settle from an authorized wallet (buyer/seller/owner), or connect the attestor wallet (" + attestor + ") to sign, or run: node scripts/settle.mjs --payment " + pid);
       }
-      // Build the same settlement hash as the escrow and sign it as proof of finalization.
-      const settlementHash = keccak256(encodeAbiParameters(
-        [
-          { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "bytes32" },
-          { type: "uint256" }, { type: "uint256" }, { type: "address" }, { type: "address" }, { type: "bytes32" },
-        ],
-        [
-          BigInt(84532), getAddress(ESCROW), keccak256(new TextEncoder().encode(p.id)), keccak256(new TextEncoder().encode(expected)),
-          BigInt(p.verdict_score), refundPercent, getAddress(p.buyer), getAddress(p.seller), ("0x" + digest),
-        ]
-      ));
-      toast("<strong>Sign finalization proof</strong> in MetaMask (Base Sepolia)");
-      const proof = await wallet.signMessage({ account: wallet.account, message: { raw: settlementHash } });
       const args = expected === "partial"
         ? [pid, 100n - refundPercent, BigInt(p.verdict_score), digest, proof]
         : [pid, BigInt(p.verdict_score), digest, proof];

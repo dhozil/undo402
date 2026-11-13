@@ -22,7 +22,7 @@ BASE = Path(__file__).resolve().parent.parent
 app = FastAPI(title="Undo402 Dispute API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0x9022290256C9b4B243fD4519b9857c83e45fFb5a")
+CONTRACT_ADDRESS = os.environ.get("UNDO402_CONTRACT_ADDRESS", "0xaee085b0f4921953dD3474a15467D73E3E90F2AD")
 ESCROW_ADDRESS = os.environ.get("ESCROW", os.environ.get("ESCROW_CONTRACT", "0x85bC06C938532EF89388A401637bE1B8F7ac9037"))
 STUDIONET_RPC = "https://studio.genlayer.com/api"
 CHAIN_ID = 61999

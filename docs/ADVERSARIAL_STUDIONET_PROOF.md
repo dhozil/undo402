@@ -110,4 +110,4 @@ Payment `adv-mutual-1794582890001` (0.1 USDC, x402):
 ## 5. On-chain hardening in repo (criteria min length)
 - `contracts/Undo402.py` (`_prepare_payment`): added `len(criteria.strip()) < 10` → `UserError("[EXPECTED] Criteria too short (min 10 chars)")`.
 - `tests/direct/test_undo402.py`: added `test_criteria_too_short_rejected`; existing tests updated to use valid-length criteria. **20/20 direct tests pass**.
-- To enforce this on a live GenLayer deployment, redeploy the hardened contract and update configured addresses (deployment is environment/key dependent); the hardening and its proof are committed in this repo.
+- **Redeployed (hardened, active):** `0xaee085b0f4921953dD3474a15467D73E3E90F2AD` (StudioNet, deploy tx `0xba0b432e3ee056a2bf9736e3ba5be9cf90cce971c01b690a1c3afef4afbc4bcb`, owner/relay deployer). Frontend/scripts/configs now target this address so on-chain min-criteria (>=10 chars) is enforced for new cases; historical adversarial/live evidence above remains on v9 `0x9022290256C9b4B243fD4519b9857c83e45fFb5a`.

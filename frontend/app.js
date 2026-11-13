@@ -1,6 +1,6 @@
 // Undo402 frontend — live StudioNet reads via genlayer-js (dynamic import)
 
-const CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
+const CONTRACT = (window.UNDO402 && window.UNDO402.GENLAYER_CONTRACT) || "0xaee085b0f4921953dD3474a15467D73E3E90F2AD";
 const EXPLORER = "https://explorer-studio.genlayer.com";
 
 const $ = (id) => document.getElementById(id);

@@ -147,13 +147,14 @@
         <button class="btn btn-primary" id="btnEscrow">B. Create escrow</button>
         <button class="btn btn-ghost" id="btnEscrowStatus">Check escrow</button>
       </div>
+      <label>Attestor finalization proof (optional if attestor wallet connected)<input id="eProof" placeholder="0x… signature from attestor (required for non-attestor wallets)"><small>Paste the ECDSA proof produced by the attestor after verifying GenLayer finality (e.g. output of <code>node scripts/settle.mjs --payment &lt;id&gt; --print-proof</code>). Any authorized party (buyer/seller/owner/relay) can submit settlement with a valid proof; the attestor can leave this empty to sign in-browser.</small></label>
       <div class="btn-row">
         <button class="btn" id="btnRefund">↩ Refund (buyer)</button>
         <button class="btn" id="btnRelease">✅ Release (seller)</button>
         <button class="btn" id="btnPartial">◐ Settle partial</button>
         <button class="btn btn-ghost" id="btnTimeout">⏱ Claim timeout</button>
       </div>
-      <p class="muted">Refund / release / partial settle only after a finalized GenLayer verdict. The app re-verifies payment ID, verdict, attestation digest, and refund split, then requires an <strong>attestor finalization proof</strong> before signing. Connect the attestor wallet to settle from the browser, or run <code>node scripts/settle.mjs --payment &lt;id&gt;</code>. Claim timeout = buyer withdraws directly after the deadline, with no backend needed.</p>
+      <p class="muted">Refund / release / partial settle only after a finalized GenLayer verdict. The app re-verifies payment ID, verdict, attestation digest, and refund split, then requires an <strong>attestor finalization proof</strong>. Provide a proof to settle from any authorized connected wallet, or connect the attestor wallet to sign, or run <code>node scripts/settle.mjs --payment &lt;id&gt;</code>. Claim timeout = buyer withdraws directly after the deadline, with no backend needed.</p>
       <div id="escrowOut" class="muted">Escrow: <code>0x85bC06C938532EF89388A401637bE1B8F7ac9037</code></div>
     </div>
 
@@ -213,8 +214,8 @@
     <div class="card">
       <h3>GenLayer StudioNet (adjudication)</h3>
       <p>Undo402 single contract — payments, factory registry, AI jury, human layer.</p>
-      <p><code>0x9022290256C9b4B243fD4519b9857c83e45fFb5a</code></p>
-      <a href="https://explorer-studio.genlayer.com/address/0x9022290256C9b4B243fD4519b9857c83e45fFb5a" target="_blank" rel="noreferrer">View on Studio Explorer ↗</a>
+      <p><code>0xaee085b0f4921953dD3474a15467D73E3E90F2AD</code> <span class="muted">(hardened: on-chain criteria min-length)</span></p>
+      <a href="https://explorer-studio.genlayer.com/address/0xaee085b0f4921953dD3474a15467D73E3E90F2AD" target="_blank" rel="noreferrer">View on Studio Explorer ↗</a>
     </div>
     <div class="card">
       <h3>Base Sepolia (USDC escrow)</h3>

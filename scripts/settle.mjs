@@ -18,6 +18,7 @@
 // Usage:
 //   node scripts/settle.mjs --payment pay-1
 //   node scripts/settle.mjs --payment pay-3 --check          # verify only
+//   node scripts/settle.mjs --payment pay-3 --print-proof    # verify + output attestor proof (no Base tx)
 //   node scripts/settle.mjs --all --json                     # every ready case
 //
 // Env:
@@ -44,7 +45,7 @@ import { getClient, getPayment, getPayments } from "../api/relay.mjs";
 import { sellerWallet } from "./wallet.mjs";
 
 const GENLAYER_CONTRACT =
-  process.env.UNDO402_CONTRACT_ADDRESS || "0x9022290256C9b4B243fD4519b9857c83e45fFb5a";
+  process.env.UNDO402_CONTRACT_ADDRESS || "0xaee085b0f4921953dD3474a15467D73E3E90F2AD";
 const ESCROW =
   process.env.ESCROW || process.env.ESCROW_CONTRACT || "0x85bC06C938532EF89388A401637bE1B8F7ac9037";
 const CHAIN = (process.env.BASE_CHAIN || "base-sepolia").toLowerCase() === "base" ? base : baseSepolia;
@@ -302,6 +303,11 @@ async function settleOne(gl, pub, wallet, id, relayAddress, ownerAddress, attest
   const hash = settlementHashLocal(CHAIN.id, ESCROW, verified, escrow.buyer, escrow.seller);
   const proof = await wallet.account.signMessage({ message: { raw: hash } });
   log(`  finalization proof signed by attestor ${signer}`);
+  if (printProof) {
+    log(`  proof: ${proof}`);
+    console.log(proof);
+    return { ok: true, paymentId: id, ...verified, sent: false, txHash: null, proof, proofOnly: true };
+  }
 
   let txHash;
   try {

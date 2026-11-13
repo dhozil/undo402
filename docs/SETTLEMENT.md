@@ -93,6 +93,9 @@ Settlement cannot be replayed because the second call reverts with
 # verify only — no Base transaction
 node scripts/settle.mjs --payment <id> --check
 
+# output attestor finalization proof (no Base tx) — share with an authorized party to submit from their wallet
+node scripts/settle.mjs --payment <id> --print-proof
+
 # settle (signer must be the escrow attestor; script verifies finality then signs proof)
 WALLET_DIR=/path/to/wallet node scripts/settle.mjs --payment <id>
 
@@ -103,7 +106,7 @@ node scripts/settle.mjs --all --json
 Environment:
 
 ```
-UNDO402_CONTRACT_ADDRESS   0x9022290256C9b4B243fD4519b9857c83e45fFb5a
+UNDO402_CONTRACT_ADDRESS   0xaee085b0f4921953dD3474a15467D73E3E90F2AD  # hardened active (on-chain criteria min-length); v9 history: 0x9022...Fb5a
 ESCROW                     0x85bC06C938532EF89388A401637bE1B8F7ac9037
 GENLAYER_RPC_URL           https://studio.genlayer.com/api
 BASE_RPC_URL               https://sepolia.base.org
